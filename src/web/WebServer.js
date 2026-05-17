@@ -292,26 +292,25 @@ class WebServer {
     app.get('/register', (req, res) => res.sendFile(path.join(__dirname, 'public', 'register.html')));
     app.get('/account', (req, res) => res.sendFile(path.join(__dirname, 'public', 'account.html')));
 
-    // GT istemcisinin baglandigi server_data endpoint'i (HTTPS bekler)
-    // Modern UbiServices SDK formati: loginurl| host (IP DEGIL, domain olmali ki
-    // GT istemcisi WebView'i acsin ve HTML login dashboard'umuza yonlendirsin).
-    // Hosts dosyasi www.growtopia1.com -> 127.0.0.1 ceviriyor.
+    // GT istemcisinin baglandigi server_data endpoint'i (HTTPS bekler).
+    // Modern protokol 225 (GT 5.45+): loginurl ve type2 KABUL EDILMIYOR (-1200 doner).
+    // Bu format'la client native ENet dialog'a duser, biz onu ENetServer'da hazirladik.
     app.all('/growtopia/server_data.php', (req, res) => {
       const cfg = ctx.config.network;
       const gameHost = cfg.publicHost || (cfg.gameHost === '0.0.0.0' ? '127.0.0.1' : cfg.gameHost);
-      // GT WebView icin domain gerekli — IP loginurl olarak kabul edilmiyor.
-      const loginDomain = cfg.loginDomain || 'www.growtopia1.com';
+      // Client'in protokol versiyonunu log'la (debug icin)
+      if (req.body && req.body.protocol) {
+        this.log.info(`[GT-CLIENT] version=${req.body.version} protocol=${req.body.protocol} platform=${req.body.platform}`);
+      }
       const body =
         `server|${gameHost}\n` +
         `port|${cfg.gamePort}\n` +
         `type|1\n` +
-        `#maint|server is under maintenance, We will be back online shortly. Thank you for your patience.\n` +
+        `#maint|server is under maintenance\n` +
         `beta_server|${gameHost}\n` +
         `beta_port|${cfg.gamePort}\n` +
         `beta_type|1\n` +
-        `meta|ignoremeta\n` +
-        `loginurl|${loginDomain}\n` +
-        `type2|1\n` +
+        `meta|undefined\n` +
         `RTENDMARKERBS1001`;
       res.set({
         'Content-Type': 'text/html',
