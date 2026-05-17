@@ -29,8 +29,8 @@
     <div class="tab" data-tab="register">Kayit</div>
   </div>
 
-  <!-- LOGIN FORM (protokol 225 standart akis) -->
-  <form id="loginForm" action="/player/growid/login/validate" method="POST" autocomplete="on">
+  <!-- LOGIN FORM (protokol 225 - GrowServer JSON body uyumlu) -->
+  <form id="loginForm" autocomplete="on">
     <input type="hidden" name="_token" value="{{ data }}">
     <label for="growId-login">GrowID</label>
     <input id="growId-login" name="growId" placeholder="OYUNCU_ADIN" required minlength="3" maxlength="20" pattern="[a-zA-Z0-9]+" autocomplete="username" autocapitalize="off" autocorrect="off">
@@ -40,7 +40,7 @@
   </form>
 
   <!-- REGISTER FORM -->
-  <form id="registerForm" class="hidden" action="/player/growid/login/validate" method="POST" autocomplete="on">
+  <form id="registerForm" class="hidden" autocomplete="on">
     <input type="hidden" name="_token" value="{{ data }}">
     <input type="hidden" name="reg" value="1">
     <label for="growId-reg">GrowID</label>
@@ -54,17 +54,56 @@
     <button type="submit">HESAP OLUSTUR</button>
   </form>
 
-  <small>GrowTurk MultiServer - protokol 225</small>
+  <div id="msg" style="margin-top:12px;text-align:center;font-size:13px;min-height:18px"></div>
+
+  <small>GrowTurk - protokol 225</small>
 </div>
 <script>
   const tabs = document.querySelectorAll('.tab');
   const lf = document.getElementById('loginForm');
   const rf = document.getElementById('registerForm');
+  const msg = document.getElementById('msg');
   tabs.forEach(t => t.addEventListener('click', () => {
     tabs.forEach(x => x.classList.toggle('active', x === t));
     const isLogin = t.dataset.tab === 'login';
     lf.classList.toggle('hidden', !isLogin);
     rf.classList.toggle('hidden', isLogin);
+    msg.textContent = '';
   }));
+
+  // GrowServer protokolunde form JSON body ile POST ediliyor:
+  // POST /player/login/validate {"data": {"growId":"X", "password":"Y"}}
+  async function submitLogin(form, isRegister) {
+    const fd = new FormData(form);
+    const data = { growId: fd.get('growId'), password: fd.get('password') };
+    if (isRegister) data.email = fd.get('email');
+    msg.style.color = '#99a2c1';
+    msg.textContent = isRegister ? 'Kayit yapiliyor...' : 'Giris yapiliyor...';
+    try {
+      const r = await fetch('/player/login/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data })
+      });
+      const text = await r.text();
+      let parsed = null;
+      try { parsed = JSON.parse(text); } catch {}
+      if (r.ok && parsed && parsed.status === 'success') {
+        msg.style.color = '#6cf09a';
+        msg.textContent = 'Basarili! Oyuna donulebilir.';
+        // GT istemcisi bu yaniti yakaliyor, otomatik kapanmali.
+        // Tedbiren ayni JSON'u DOM'a da yaziyoruz (bazi WebView'lar boyle parse ediyor).
+        document.body.setAttribute('data-token', parsed.token);
+      } else {
+        msg.style.color = '#ff7c8a';
+        msg.textContent = (parsed && parsed.message) || text || 'Hata';
+      }
+    } catch (e) {
+      msg.style.color = '#ff7c8a';
+      msg.textContent = 'Baglanti hatasi: ' + e.message;
+    }
+  }
+  lf.addEventListener('submit', (e) => { e.preventDefault(); submitLogin(lf, false); });
+  rf.addEventListener('submit', (e) => { e.preventDefault(); submitLogin(rf, true); });
 </script>
 </body></html>

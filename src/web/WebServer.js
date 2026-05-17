@@ -293,7 +293,9 @@ class WebServer {
     app.get('/account', (req, res) => res.sendFile(path.join(__dirname, 'public', 'account.html')));
 
     // GT istemcisinin baglandigi server_data endpoint'i (HTTPS bekler).
-    // Modern protokol 225 (GT 5.45+): loginurl varsa WebView dashboard'u acar.
+    // Format StileDevs/GrowServer'dan birebir kopyalanmistir:
+    // https://github.com/StileDevs/GrowServer/blob/main/apps/logon/src/index.ts
+    // Sira ve alanlar protokol 225 icin kritik (-1200 hatasi formattan).
     app.all('/growtopia/server_data.php', (req, res) => {
       const cfg = ctx.config.network;
       const gameHost = cfg.publicHost || (cfg.gameHost === '0.0.0.0' ? '127.0.0.1' : cfg.gameHost);
@@ -301,23 +303,21 @@ class WebServer {
       if (req.body && req.body.protocol) {
         this.log.info(`[GT-CLIENT] version=${req.body.version} protocol=${req.body.protocol} platform=${req.body.platform}`);
       }
+      const maintMessage = '';
+      // GrowServer'in birebir formati (literal newline'lar dahil)
       const body =
         `server|${gameHost}\n` +
         `port|${cfg.gamePort}\n` +
-        `type|1\n` +
-        `#maint|server is under maintenance\n` +
-        `beta_server|${gameHost}\n` +
-        `beta_port|${cfg.gamePort}\n` +
-        `beta_type|1\n` +
-        `meta|undefined\n` +
         `loginurl|${loginDomain}\n` +
+        `type|1\n` +
+        `#maint|\n` +
+        `\n` +
+        `${maintMessage}\n` +
+        `\n` +
+        `type2|1\n` +
+        `meta|ignoremeta\n` +
         `RTENDMARKERBS1001`;
-      res.set({
-        'Content-Type': 'text/html',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      }).send(body);
+      res.set('Content-Type', 'text/html').send(body);
     });
 
     // Modern GT istemcisi UbiServices ile bazen ek endpoint'ler ister.
@@ -435,11 +435,60 @@ class WebServer {
       }
     });
 
-    // Geriye uyumluluk: eski /player/login/validate'i de yeni endpoint'e yonlendir
-    app.all('/player/login/validate', (req, res) => {
-      // GT istemcisi yeni protokolde /player/growid/login/validate kullanir
-      this.log.warn('[GT-LOGIN] Eski /player/login/validate cagrildi -> yeni endpoint\'e yonleniyor');
-      res.redirect(307, '/player/growid/login/validate');
+    // GrowServer-style /player/login/validate: JSON body {"data":{"growId","password"}}
+    // GT istemcisinin bazi versiyonlari bunu kullanir.
+    app.post('/player/login/validate', async (req, res) => {
+      try {
+        // JSON ya da form-urlencoded body kabul et
+        const body = req.body || {};
+        const data = body.data || body;
+        const growId = (data.growId || data.growID || body.growId || body.growID || '').trim();
+        const password = data.password || body.password || '';
+
+        this.log.info(`[GT-LOGIN] /player/login/validate growId=${growId}`);
+
+        if (!growId || !password) {
+          return res.status(401).send('Unauthorized: missing growId/password');
+        }
+
+        let r = ctx.players.login(growId, password);
+        if (!r.ok && r.error === 'Oyuncu bulunamadi.') {
+          r = ctx.players.register(growId, password);
+        }
+        if (!r.ok) {
+          return res.status(401).send('Unauthorized: ' + r.error);
+        }
+
+        const tokenPayload = `growId|${growId}\npassword|${password}`;
+        const token = Buffer.from(tokenPayload, 'utf8').toString('base64');
+        const until = Date.now() + 10 * 60000;
+        this.loginTokens.set(token, { key: r.player.key, until });
+        ctx.gtLoginTokens.set(token, { key: r.player.key, growID: growId, until });
+        ctx.gtLoginTokens.set(`growid:${growId.toLowerCase()}`, { key: r.player.key, growID: growId, until });
+        ctx.audit.record('gt.login', growId);
+        this.log.success(`[GT-LOGIN] dogrulama OK (GrowServer-style): ${growId}`);
+
+        // GrowServer: ctx.html(JSON.stringify(...)) -> text/html ile JSON gonderir
+        res.set('Content-Type', 'text/html').send(JSON.stringify({
+          status: 'success',
+          message: 'Account Validated.',
+          token,
+          url: '',
+          accountType: 'growtopia'
+        }));
+      } catch (e) {
+        res.status(401).send('Unauthorized: ' + e.message);
+      }
+    });
+
+    // GET /player/growid/login/validate?token=XXX — refresh akisi (GrowServer)
+    app.get('/player/growid/login/validate', (req, res) => {
+      const token = req.query.token;
+      if (!token) return res.status(401).send('Unauthorized: no token');
+      res.set('Content-Type', 'text/html').send(JSON.stringify({
+        status: 'success', message: 'Account Validated.',
+        token, url: '', accountType: 'growtopia'
+      }));
     });
 
     app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
