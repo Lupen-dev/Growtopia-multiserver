@@ -61,6 +61,19 @@ class ENetServer {
     const buf = Buffer.alloc(4);
     buf.writeUInt32LE(P.TYPE.REQUEST_LOGIN_INFO, 0);
     this.send(peer, buf);
+
+    // GrowID set_url akisi opsiyonel: yapilandirmadaysa web login sayfasi ac
+    const cfg = this.ctx.config.network;
+    if (cfg.growIDWebLogin) {
+      const host = cfg.publicHost || ('127.0.0.1:' + this.ctx.config.network.webPort);
+      const loginUrl = `http://${host}/growid/login?redirect=/play`;
+      const text =
+        'action|set_url\n' +
+        'url|' + loginUrl + '\n' +
+        'label|`9Web ile Giris Yap`o\n';
+      this.sendText(peer, text, P.TYPE.STRING);
+    }
+
     this.log.info(`baglanti #${netID} kuruldu`);
   }
 

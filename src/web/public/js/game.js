@@ -90,6 +90,24 @@
     connect();
     setTimeout(() => send({ type: 'login', name: u, password: p }), 300);
   };
+
+  // HTML login sayfasindan gelen token ile otomatik giris
+  async function tryAutoLogin() {
+    const token = localStorage.getItem('gt_player_token');
+    if (!token) return;
+    try {
+      const r = await fetch('/api/account/me', { headers: { 'x-player-token': token } });
+      if (!r.ok) return;
+      const data = await r.json();
+      if (!data.ok) return;
+      // Token gecerli - WS login icin sifre yerine "token+xxx" gondermek yerine kullanici adini onceden doldur
+      $('#username').value = data.player.name;
+      $('#username').readOnly = true;
+      const small = document.querySelector('.auth-card small');
+      if (small) small.innerHTML = 'Tokenla giris yapildi. Sifreni gir ya da <a href="/account" style="color:#6cd0ff">/account</a> sayfasinda yonet.';
+    } catch {}
+  }
+  tryAutoLogin();
   $('#btnRegister').onclick = () => {
     const u = $('#username').value.trim(), p = $('#password').value;
     if (!u || !p) return;

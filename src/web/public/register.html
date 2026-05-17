@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="tr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kayit - GrowTurk</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/account.css">
+</head><body class="account-body">
+<div class="account-shell">
+  <div class="account-card">
+    <div class="brand-big">GrowTurk <span>MegaServer</span></div>
+    <h2>Yeni Hesap Olustur</h2>
+    <p class="muted">Hesabin web istemcisinde ve resmi GT istemcisinde gecerli olur.</p>
+    <form id="registerForm">
+      <input id="username" autocomplete="username" placeholder="Kullanici adi (3-20, harf/rakam/_)" required minlength="3" maxlength="20" pattern="[a-zA-Z0-9_]+">
+      <input id="password" type="password" autocomplete="new-password" placeholder="Sifre (en az 4 karakter)" required minlength="4">
+      <input id="password2" type="password" autocomplete="new-password" placeholder="Sifre tekrar" required minlength="4">
+      <label class="check"><input type="checkbox" id="agree" required> Kurallari kabul ediyorum (/rules)</label>
+      <button type="submit" class="primary big">Kayit Ol</button>
+    </form>
+    <div id="err" class="err"></div>
+    <div id="ok" class="ok"></div>
+    <div class="links">
+      <a href="/login">Zaten hesabin var mi? Giris</a>
+      <span class="sep">-</span>
+      <a href="/">Ana sayfa</a>
+    </div>
+  </div>
+  <div class="account-side">
+    <h3>Baslangic Paketi</h3>
+    <ul>
+      <li>500 baslangic gem</li>
+      <li>Tahta kazma + balik tohumu + ekmek</li>
+      <li>Gunluk odul (/daily) +275g</li>
+      <li>Sans carki (/spin) gunde 1 kez</li>
+    </ul>
+    <p class="hint">Sifreni asla paylasma. Modlar/adminler sifre sormaz.</p>
+  </div>
+</div>
+<script src="/js/account.js"></script>
+</body></html>

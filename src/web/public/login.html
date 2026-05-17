@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="tr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Giris - GrowTurk</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/account.css">
+</head><body class="account-body">
+<div class="account-shell">
+  <div class="account-card">
+    <div class="brand-big">GrowTurk <span>MegaServer</span></div>
+    <h2>Hesabina Giris Yap</h2>
+    <p class="muted">GrowID, web ve oyun istemcisi icin ayni hesap.</p>
+    <form id="loginForm">
+      <input id="username" autocomplete="username" placeholder="Kullanici adi" required minlength="3" maxlength="20">
+      <input id="password" type="password" autocomplete="current-password" placeholder="Sifre" required minlength="4">
+      <input id="returnTo" type="hidden">
+      <input id="token" type="hidden">
+      <button type="submit" class="primary big">Giris</button>
+    </form>
+    <div id="err" class="err"></div>
+    <div id="ok" class="ok"></div>
+    <div class="links">
+      <a href="/register">Hesap olustur</a>
+      <span class="sep">-</span>
+      <a href="/play">Tarayicidan oyna</a>
+      <span class="sep">-</span>
+      <a href="/">Ana sayfa</a>
+    </div>
+  </div>
+  <div class="account-side">
+    <h3>Tek Hesap - Her Yerde</h3>
+    <ul>
+      <li>Tarayici istemcisi (/play)</li>
+      <li>Resmi Growtopia istemcisi (ENet, port 17091)</li>
+      <li>Hesap sayfasi (/account)</li>
+      <li>116 komut, 10 aktivite, dinamik olaylar</li>
+    </ul>
+    <p class="hint">Resmi GT istemcisinden ilk girisinde otomatik olarak bu sayfaya yonlendirilirsin (set_url GrowID akisi).</p>
+  </div>
+</div>
+<script src="/js/account.js"></script>
+</body></html>

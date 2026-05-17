@@ -11,9 +11,11 @@
     "gameHost": "0.0.0.0",
     "gamePort": 17091,
     "gameEnetEnabled": true,
+    "growIDWebLogin": false,
+    "publicHost": null,
     "webHost": "0.0.0.0",
     "webPort": 8080,
-    "note": "gamePort=17091 ENet (resmi GT istemcisi). webPort=8080 panel + server_data.php"
+    "note": "gamePort=17091 ENet (resmi GT istemcisi). webPort=8080 panel + server_data.php. growIDWebLogin=true ise ENet'e baglanan GT istemcisine set_url ile /login sayfasi gosterilir."
   },
   "economy": {
     "startingGems": 500,

@@ -1,0 +1,31 @@
+.account-body { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+.account-shell { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; width: 100%; max-width: 980px; }
+.account-shell.wide { grid-template-columns: 1fr; max-width: 760px; }
+@media (max-width: 720px) { .account-shell { grid-template-columns: 1fr; } }
+.account-card { background: var(--panel); border: 1px solid var(--border); padding: 28px; border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
+.account-side { background: linear-gradient(135deg, rgba(108, 208, 255, 0.12), rgba(181, 140, 255, 0.12));
+  border: 1px solid var(--border); padding: 24px; border-radius: 12px; }
+.brand-big { font-size: 28px; font-weight: 800; margin-bottom: 6px; }
+.brand-big span { background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text; background-clip: text; color: transparent; }
+.account-card h2 { margin: 6px 0 4px; }
+.account-card form { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.account-card form input { padding: 12px; font-size: 14px; }
+.account-card button.big { padding: 12px; font-size: 14px; font-weight: 700; }
+.account-card button.primary { background: linear-gradient(90deg, var(--accent), var(--accent2)); color: #051018; }
+.account-card .check { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+.account-card .links { margin-top: 18px; color: var(--muted); font-size: 13px; }
+.account-card .links a { color: var(--accent); }
+.account-card .links .sep { margin: 0 8px; color: var(--border); }
+.account-card .err { color: var(--bad); margin-top: 10px; min-height: 16px; }
+.account-card .ok { color: var(--good); margin-top: 10px; min-height: 16px; }
+.account-side h3 { margin-top: 0; color: var(--accent); }
+.account-side ul { padding-left: 18px; color: var(--text); line-height: 1.7; }
+.account-side .hint { color: var(--muted); font-size: 13px; margin-top: 12px; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-top: 14px; }
+.stats-grid > div { background: var(--bg2); padding: 10px; border-radius: 6px; border: 1px solid var(--border); }
+.stats-grid > div span { color: var(--muted); font-size: 11px; display: block; }
+.stats-grid > div b { font-size: 18px; }
+ul.inv { list-style: none; padding: 0; margin: 12px 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px; }
+ul.inv li { background: var(--bg2); border: 1px solid var(--border); padding: 6px 8px; border-radius: 6px; font-size: 12px; display: flex; justify-content: space-between; }

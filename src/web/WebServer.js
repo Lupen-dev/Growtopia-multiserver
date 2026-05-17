@@ -17,6 +17,21 @@ class WebServer {
     this.setupRoutes();
     this.server = http.createServer(this.app);
     this.adminWss = null;
+    this.playerSessions = new Map(); // token -> { key, until }
+  }
+
+  newPlayerToken(player) {
+    const crypto = require('crypto');
+    const t = crypto.randomBytes(24).toString('hex');
+    this.playerSessions.set(t, { key: player.key, until: Date.now() + this.ctx.config.web.sessionTtlHours * 3600 * 1000 });
+    return t;
+  }
+  validatePlayerToken(t) {
+    if (!t) return null;
+    const s = this.playerSessions.get(t);
+    if (!s) return null;
+    if (s.until < Date.now()) { this.playerSessions.delete(t); return null; }
+    return this.ctx.players.data.players[s.key] || null;
   }
 
   setupRoutes() {
@@ -198,6 +213,68 @@ class WebServer {
       if (ok) ctx.audit.record('web.userdel', req.session.username, req.params.name);
       res.json({ ok });
     });
+
+    // --- Oyuncu hesap (HTML login/register) API ---
+    const requirePlayer = (req, res, next) => {
+      const t = req.headers['x-player-token'] || req.query.token;
+      const p = this.validatePlayerToken(t);
+      if (!p) return res.status(401).json({ ok: false, error: 'Giris yapmalisin.' });
+      req.player = p; req.playerToken = t;
+      next();
+    };
+
+    app.post('/api/account/register', (req, res) => {
+      const { username, password } = req.body || {};
+      const r = ctx.players.register(username || '', password || '');
+      if (!r.ok) return res.status(400).json(r);
+      const token = this.newPlayerToken(r.player);
+      ctx.audit.record('account.register', r.player.name);
+      res.json({ ok: true, token, username: r.player.name });
+    });
+
+    app.post('/api/account/login', (req, res) => {
+      const { username, password } = req.body || {};
+      const r = ctx.players.login(username || '', password || '');
+      if (!r.ok) return res.status(401).json(r);
+      if (ctx.bans.isBanned(r.player.name)) return res.status(403).json({ ok: false, error: 'Hesap yasakli.' });
+      const token = this.newPlayerToken(r.player);
+      ctx.audit.record('account.login', r.player.name);
+      res.json({ ok: true, token, username: r.player.name, role: r.player.role });
+    });
+
+    app.post('/api/account/logout', requirePlayer, (req, res) => {
+      this.playerSessions.delete(req.playerToken);
+      res.json({ ok: true });
+    });
+
+    app.get('/api/account/me', requirePlayer, (req, res) => {
+      const p = req.player;
+      const { passwordHash, salt, conn, ...safe } = p;
+      const itemsMap = {};
+      for (const id of Object.keys(p.inventory)) {
+        const it = ctx.items.get(id); if (it) itemsMap[id] = { name: it.name, rarity: it.rarity, category: it.category };
+      }
+      res.json({ ok: true, player: safe, xpNext: ctx.players.xpForNext(p), items: itemsMap });
+    });
+
+    app.post('/api/account/password', requirePlayer, (req, res) => {
+      const { oldPassword, newPassword } = req.body || {};
+      const check = ctx.players.login(req.player.name, oldPassword || '');
+      if (!check.ok) return res.status(400).json({ ok: false, error: 'Mevcut sifre yanlis.' });
+      if (!newPassword || newPassword.length < 4) return res.status(400).json({ ok: false, error: 'Yeni sifre en az 4 karakter.' });
+      ctx.players.changePassword(req.player, newPassword);
+      ctx.audit.record('account.password', req.player.name);
+      res.json({ ok: true });
+    });
+
+    // GrowID akisi (GT istemcisinin set_url ile actigi sayfanin postback'i)
+    // GT istemcisi 'redirect' parametresi ile token bekler, frontend yonlendirir.
+    app.get('/growid/login', (req, res) => res.redirect('/login?return=' + encodeURIComponent(req.query.redirect || '/account')));
+
+    // --- HTML sayfa rotalari ---
+    app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
+    app.get('/register', (req, res) => res.sendFile(path.join(__dirname, 'public', 'register.html')));
+    app.get('/account', (req, res) => res.sendFile(path.join(__dirname, 'public', 'account.html')));
 
     // GT istemcisinin baglandigi server_data endpoint'i (HTTP)
     app.all('/growtopia/server_data.php', (req, res) => {

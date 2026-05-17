@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="tr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hesabim - GrowTurk</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/account.css">
+</head><body class="account-body">
+<div class="account-shell wide">
+  <div class="account-card">
+    <div class="brand-big">GrowTurk <span>Hesabim</span></div>
+    <h2 id="hName">-</h2>
+    <p class="muted">Rol: <b id="hRole">player</b></p>
+    <div class="stats-grid">
+      <div><span>Seviye</span><b id="sLvl">-</b></div>
+      <div><span>XP</span><b id="sXp">-</b></div>
+      <div><span>Gems</span><b id="sGems">-</b></div>
+      <div><span>HP</span><b id="sHp">-</b></div>
+      <div><span>Dunya</span><b id="sWorld">-</b></div>
+      <div><span>Klan</span><b id="sClan">-</b></div>
+      <div><span>Balik</span><b id="sFish">-</b></div>
+      <div><span>Madencilik</span><b id="sMine">-</b></div>
+      <div><span>Hasat</span><b id="sFarm">-</b></div>
+      <div><span>Kill / Death</span><b id="sKD">-</b></div>
+    </div>
+    <h3>Envanter</h3>
+    <ul id="invList" class="inv"></ul>
+    <h3>Sifre Degistir</h3>
+    <form id="passForm" class="inline">
+      <input id="oldPw" type="password" placeholder="Mevcut sifre" required>
+      <input id="newPw" type="password" placeholder="Yeni sifre (4+)" required minlength="4">
+      <button>Degistir</button>
+    </form>
+    <div id="passMsg"></div>
+    <div class="links">
+      <a href="/play">Oyna</a>
+      <span class="sep">-</span>
+      <a href="#" id="btnLogout">Cikis</a>
+      <span class="sep">-</span>
+      <a href="/">Ana sayfa</a>
+    </div>
+  </div>
+</div>
+<script src="/js/account.js"></script>
+</body></html>
