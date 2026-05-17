@@ -258,10 +258,40 @@ end_dialog|GROWID_LOGIN_VALIDATE|Iptal|Giris|`;
 
   // ---- Login ----
   attemptLogin(session, name, password) {
-    // Sifre yoksa (GrowID/HTTPS akisinda webden token geldiyse) auto-register/lookup.
-    let res = this.ctx.players.login(name, password);
-    if (!res.ok && res.error === 'Oyuncu bulunamadi.') {
-      res = this.ctx.players.register(name, password || 'changeme');
+    // 1) WebView'dan gelen token ise (HTTPS dashboard'dan), onu tani
+    const tokens = this.ctx.gtLoginTokens;
+    let res = null;
+    if (tokens) {
+      // (a) password dogrudan token mi?
+      const tokRec = tokens.get(password);
+      if (tokRec && tokRec.until > Date.now()) {
+        const player = this.ctx.players.data.players[tokRec.key];
+        if (player) {
+          res = { ok: true, player };
+          tokens.delete(password); // token tek kullanimlik
+          this.log.info(`[GT-LOGIN] ENet token ile giris: ${name}`);
+        }
+      }
+      // (b) growID icin aktif bir webview giris var mi?
+      if (!res) {
+        const growKey = `growid:${name.toLowerCase()}`;
+        const gRec = tokens.get(growKey);
+        if (gRec && gRec.until > Date.now()) {
+          const player = this.ctx.players.data.players[gRec.key];
+          if (player) {
+            res = { ok: true, player };
+            tokens.delete(growKey);
+            this.log.info(`[GT-LOGIN] ENet growID-token ile giris: ${name}`);
+          }
+        }
+      }
+    }
+    // 2) Yine olmadiysa klasik password login
+    if (!res) {
+      res = this.ctx.players.login(name, password);
+      if (!res.ok && res.error === 'Oyuncu bulunamadi.') {
+        res = this.ctx.players.register(name, password || 'changeme');
+      }
     }
     if (!res.ok) {
       this.sendDialog(session.netID,

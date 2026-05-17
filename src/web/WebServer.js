@@ -293,20 +293,25 @@ class WebServer {
     app.get('/account', (req, res) => res.sendFile(path.join(__dirname, 'public', 'account.html')));
 
     // GT istemcisinin baglandigi server_data endpoint'i (HTTPS bekler)
-    // Modern UbiServices SDK formati: #maint COMMENT olduğu icin atılır,
-    // loginurl modern istemcide login.growtopia1.com bekleniyor.
+    // Modern UbiServices SDK formati: loginurl| host (IP DEGIL, domain olmali ki
+    // GT istemcisi WebView'i acsin ve HTML login dashboard'umuza yonlendirsin).
+    // Hosts dosyasi www.growtopia1.com -> 127.0.0.1 ceviriyor.
     app.all('/growtopia/server_data.php', (req, res) => {
       const cfg = ctx.config.network;
-      const reachableHost = cfg.publicHost || (cfg.gameHost === '0.0.0.0' ? '127.0.0.1' : cfg.gameHost);
+      const gameHost = cfg.publicHost || (cfg.gameHost === '0.0.0.0' ? '127.0.0.1' : cfg.gameHost);
+      // GT WebView icin domain gerekli — IP loginurl olarak kabul edilmiyor.
+      const loginDomain = cfg.loginDomain || 'www.growtopia1.com';
       const body =
-        `server|${reachableHost}\n` +
+        `server|${gameHost}\n` +
         `port|${cfg.gamePort}\n` +
         `type|1\n` +
         `#maint|server is under maintenance, We will be back online shortly. Thank you for your patience.\n` +
-        `beta_server|${reachableHost}\n` +
+        `beta_server|${gameHost}\n` +
         `beta_port|${cfg.gamePort}\n` +
         `beta_type|1\n` +
         `meta|ignoremeta\n` +
+        `loginurl|${loginDomain}\n` +
+        `type2|1\n` +
         `RTENDMARKERBS1001`;
       res.set({
         'Content-Type': 'text/html',
@@ -353,7 +358,12 @@ class WebServer {
       const crypto = require('crypto');
       const token = crypto.randomBytes(24).toString('hex');
       this.loginTokens.set(token, { key: r.player.key, until: Date.now() + 5 * 60000 });
+      // ENet tarafinin token'i tanimasi icin paylasilan map'e de yaz
+      ctx.gtLoginTokens.set(token, { key: r.player.key, growID, until: Date.now() + 5 * 60000 });
+      // Bu growID'ye gelen herhangi bir login_request bu token'i kabul edebilir
+      ctx.gtLoginTokens.set(`growid:${growID.toLowerCase()}`, { key: r.player.key, growID, until: Date.now() + 5 * 60000 });
       ctx.audit.record('gt.login', growID);
+      this.log.info(`[GT-LOGIN] WebView /validate basarili: ${growID} -> token ${token.slice(0,8)}...`);
       res.json({ status: 'success', message: 'Account Validated.', token, url: '', accountType: 'growtopia' });
     });
 

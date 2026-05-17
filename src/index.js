@@ -122,6 +122,9 @@ async function main() {
   activities.register('treasure', new TreasureHunt());
   activities.register('bossraid', new BossRaid());
 
+  // GT WebView login token'lari (WebServer ile ENetServer arasinda paylasilir)
+  ctx.gtLoginTokens = new Map();
+
   // Komutlari kaydet
   ctx.cmd = new CommandHandler(ctx);
   registerAllCommands(ctx.cmd);

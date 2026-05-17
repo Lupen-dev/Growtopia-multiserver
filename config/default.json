@@ -16,7 +16,8 @@
     "loginPort": 443,
     "loginPortFallback": 8443,
     "publicHost": "127.0.0.1",
-    "note": "GT istemcisi server_data.php icin 443 bekler. Sudo ile baslatmazsan otomatik 8443'e dusulur ve portfwd.sh ile yonlendirme yapman istenir."
+    "loginDomain": "www.growtopia1.com",
+    "note": "publicHost = ENet baglanti hedefi (IP). loginDomain = GT WebView'in acacagi HTTPS hostname (hosts dosyasinda 127.0.0.1'e cevriliyor). GT istemcisi loginurl| icin IP kabul etmez, domain ister."
   },
   "economy": {
     "startingGems": 500,
