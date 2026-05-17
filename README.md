@@ -11,8 +11,19 @@ Eglenceli, cok komutlu, web panelli ozel Growtopia tarzi sunucu.
 
 Ilk calistirmada otomatik olarak:
 - Node 18+ kontrolu yapilir.
-- `npm install` ile `express` ve `ws` paketleri yuklenir.
+- `npm install` ile `express`, `ws` ve **`growtopia.js`** (Rust+NAPI prebuilt) paketleri yuklenir.
+- Self-signed SSL sertifikasi olusturulur (`data/runtime/ssl/`).
 - Veritabani tohumlanir (esyalar, demo dunyalar, varsayilan admin hesabi).
+
+**Repoyu guncelledikten sonra** (`git pull`), bagimlilik degismis olabilir.
+`start.sh` package.json degisikligini saptayip otomatik yeniden kurar.
+Manuel olarak:
+
+```bash
+git pull
+npm install
+./start.sh
+```
 
 Acildiginda:
 - **Oyun (Web istemcisi)**: http://localhost:8080/play

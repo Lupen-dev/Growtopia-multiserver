@@ -39,8 +39,8 @@ fi
 
 echo -e "${GREEN}[OK]${NC} Node.js $(node -v) bulundu"
 
-if [ ! -d node_modules ]; then
-  echo -e "${YELLOW}[..]${NC} Bagimliliklar yukleniyor (npm install)..."
+if [ ! -d node_modules ] || [ package.json -nt node_modules/.package-lock.json ] || [ ! -d node_modules/growtopia.js ]; then
+  echo -e "${YELLOW}[..]${NC} Bagimliliklar yukleniyor/guncelleniyor (npm install)..."
   npm install --no-audit --no-fund --loglevel=error
   echo -e "${GREEN}[OK]${NC} Bagimliliklar yuklendi"
 fi
