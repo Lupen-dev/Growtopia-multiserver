@@ -15,6 +15,15 @@ class WebServer {
     this.auth = new WebAuth(ctx.db, ctx.config, ctx.logger);
     this.app.use(express.json({ limit: '256kb' }));
     this.app.use(express.urlencoded({ extended: false }));
+    // GT istemcisi isteklerini logla (sorun gidermek icin)
+    this.app.use((req, res, next) => {
+      const ua = req.get('user-agent') || '';
+      const isGT = /growtopia/i.test(ua) || req.path.startsWith('/growtopia/') || req.path.startsWith('/player/login');
+      if (isGT) {
+        this.log.info(`[GT-HTTP] ${req.method} ${req.path} ua="${ua.slice(0,80)}"`);
+      }
+      next();
+    });
     this.app.use(express.static(path.join(__dirname, 'public')));
     this.setupRoutes();
     this.server = http.createServer(this.app);

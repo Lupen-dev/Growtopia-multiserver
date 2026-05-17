@@ -89,30 +89,48 @@ type|local
   onConnect(netID) {
     this.peers.set(netID, {
       netID, player: null, state: 'awaiting_login',
-      loginAttempts: 0
+      loginAttempts: 0, connectedAt: Date.now()
     });
     // 1. paket: REQUEST_LOGIN_INFO (type 1, hicbir body yok)
-    try { this.client.send(netID, 0, TextPacket.from(0x1)); } catch (e) { this.log.error('hello gonderemedi: ' + e.message); }
-    this.log.info(`baglanti #${netID}`);
+    try {
+      this.client.send(netID, 0, TextPacket.from(0x1));
+      this.log.info(`>> netID=${netID} HELLO (type=1, body=empty) gonderildi`);
+    } catch (e) { this.log.error('hello gonderemedi: ' + e.message); }
+    this.log.info(`baglanti #${netID} (ENet handshake basarili, GT istemci paket bekleniyor)`);
   }
 
   onDisconnect(netID) {
     const s = this.peers.get(netID);
+    const dur = s && s.connectedAt ? Math.round((Date.now() - s.connectedAt) / 1000) : '?';
     if (s && s.player) {
       this.ctx.chat.system(`* ${s.player.name} sunucudan ayrildi`, 'global');
       this.ctx.worlds.leave(s.player);
       this.ctx.players.detachConnection(s.player);
     }
     this.peers.delete(netID);
-    this.log.info(`baglanti #${netID} kapandi`);
+    this.log.info(`baglanti #${netID} kapandi (sure: ${dur}s, state: ${s ? s.state : 'unknown'})`);
   }
 
   onRaw(netID, channelID, data) {
     if (!Buffer.isBuffer(data)) data = Buffer.from(data);
-    if (data.length < 4) return;
+    if (data.length < 4) {
+      this.log.warn(`<< netID=${netID} kucuk paket (${data.length}b): ${data.toString('hex')}`);
+      return;
+    }
     const type = data.readUInt32LE(0);
-    // Debug: gelen tum paketleri logla (DEBUG=1 ile)
-    if (process.env.DEBUG) this.log.debug(`recv netID=${netID} type=${type} len=${data.length}`);
+
+    // Her zaman ozet logla (protokolu anlamak icin kritik)
+    const preview = data.length > 64
+      ? data.slice(0, 64).toString('hex') + '...'
+      : data.toString('hex');
+    const typeNames = { 0:'UNK', 1:'HELLO', 2:'STR', 3:'ACTION', 4:'TANK', 5:'ERROR', 6:'TRACK', 7:'LOG_REQ', 8:'LOG_RES' };
+    this.log.info(`<< netID=${netID} type=${type}(${typeNames[type]||'?'}) ch=${channelID} len=${data.length} hex=${preview}`);
+
+    // Text paketlerinin govdesini de logla (DEBUG_TEXT=1 ile)
+    if ((type === 2 || type === 3) && process.env.DEBUG_TEXT) {
+      const body = data.slice(4).toString('utf8').replace(/\0+$/, '');
+      this.log.debug(`   body: ${body.replace(/\n/g, ' | ')}`);
+    }
 
     const session = this.peers.get(netID);
     if (!session) return;
