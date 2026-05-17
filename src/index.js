@@ -139,6 +139,7 @@ async function main() {
   ctx.gameServer.start();
   ctx.webServer.startAdminWs();
   ctx.webServer.routeUpgrades();
+  await ctx.webServer.startHttps();
 
   // ENet Growtopia sunucusu (gercek GT istemcisi icin)
   if (config.network.gameEnetEnabled !== false) {

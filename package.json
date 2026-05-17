@@ -8,14 +8,15 @@
     "start": "node src/index.js",
     "dev": "node src/index.js --dev",
     "seed": "node scripts/seed.js",
-    "reset": "node scripts/reset.js"
+    "reset": "node scripts/reset.js",
+    "gen-cert": "node scripts/gen-cert.js"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "enet": "^0.2.9",
     "express": "^4.19.2",
+    "growtopia.js": "^2.2.0",
     "ws": "^8.17.0"
   },
   "keywords": [

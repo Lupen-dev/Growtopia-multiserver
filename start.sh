@@ -47,6 +47,12 @@ fi
 
 mkdir -p logs data/runtime
 
+# SSL sertifikasi yoksa olustur (GT istemci HTTPS bekler)
+if [ ! -f data/runtime/ssl/server.crt ]; then
+  echo -e "${YELLOW}[..]${NC} GT istemcisi icin self-signed SSL sertifikasi olusturuluyor..."
+  node scripts/gen-cert.js || echo -e "${YELLOW}[!]${NC} Sertifika olusturulamadi (openssl yoklugu olabilir). HTTP devam edecek."
+fi
+
 echo -e "${GREEN}[->]${NC} Sunucu baslatiliyor..."
 echo ""
 exec node src/index.js "$@"

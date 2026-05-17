@@ -1,6 +1,8 @@
 const express = require('express');
 const path = require('path');
 const http = require('http');
+const https = require('https');
+const fs = require('fs');
 const WebSocket = require('ws');
 const WebAuth = require('./auth');
 const Perms = require('../core/Permissions');
@@ -16,8 +18,10 @@ class WebServer {
     this.app.use(express.static(path.join(__dirname, 'public')));
     this.setupRoutes();
     this.server = http.createServer(this.app);
+    this.httpsServer = null;
     this.adminWss = null;
     this.playerSessions = new Map(); // token -> { key, until }
+    this.loginTokens = new Map();    // gt client login tokens
   }
 
   newPlayerToken(player) {
@@ -276,22 +280,54 @@ class WebServer {
     app.get('/register', (req, res) => res.sendFile(path.join(__dirname, 'public', 'register.html')));
     app.get('/account', (req, res) => res.sendFile(path.join(__dirname, 'public', 'account.html')));
 
-    // GT istemcisinin baglandigi server_data endpoint'i (HTTP)
+    // GT istemcisinin baglandigi server_data endpoint'i (HTTPS bekler)
     app.all('/growtopia/server_data.php', (req, res) => {
       const cfg = ctx.config.network;
-      const reachableHost = cfg.gameHost === '0.0.0.0' ? '127.0.0.1' : cfg.gameHost;
-      const body = [
-        'server|' + reachableHost,
-        'port|' + cfg.gamePort,
-        'type|1',
-        'beta_server|' + reachableHost,
-        'beta_port|' + cfg.gamePort,
-        'beta_type|1',
-        'meta|growturk',
-        'RTENDMARKERBS1001'
-      ].join('\n');
+      const reachableHost = cfg.publicHost || (cfg.gameHost === '0.0.0.0' ? '127.0.0.1' : cfg.gameHost);
+      const loginUrl = (cfg.publicHost || '127.0.0.1') + ':' + (cfg.loginPort || 8443);
+      const body =
+        `server|${reachableHost}\n` +
+        `port|${cfg.gamePort}\n` +
+        `type|1\n` +
+        `#maint|server is under maintenance\n` +
+        `meta|growturk\n` +
+        `beta_server|${reachableHost}\n` +
+        `beta_port|${cfg.gamePort}\n` +
+        `beta_type|1\n` +
+        `loginurl|${loginUrl}\n` +
+        `type2|1\n` +
+        `RTENDMARKERBS1001`;
       res.set('Content-Type', 'text/plain').send(body);
     });
+
+    // --- GT istemcisi yeni HTTPS-tabanli giris akisi ---
+    // 1) Client GET /player/login/dashboard'a gider, HTML form gosterilir.
+    // 2) Kullanici growID + password girer -> POST /player/login/validate.
+    // 3) Server token uretip JSON dondurur. Client token'i alip ENet'e gonderir.
+    app.get('/player/login/dashboard', (req, res) => {
+      res.sendFile(path.join(__dirname, 'public', 'gt_dashboard.html'));
+    });
+
+    app.post('/player/login/validate', (req, res) => {
+      const growID = (req.body.growID || req.body.tankIDName || '').trim();
+      const password = req.body.password || req.body.tankIDPass || '';
+      if (!growID || !password) {
+        return res.status(400).json({ status: 'error', message: 'Eksik bilgi.' });
+      }
+      let r = ctx.players.login(growID, password);
+      if (!r.ok && r.error === 'Oyuncu bulunamadi.') r = ctx.players.register(growID, password);
+      if (!r.ok) {
+        return res.json({ status: 'error', message: r.error });
+      }
+      const crypto = require('crypto');
+      const token = crypto.randomBytes(24).toString('hex');
+      this.loginTokens.set(token, { key: r.player.key, until: Date.now() + 5 * 60000 });
+      ctx.audit.record('gt.login', growID);
+      res.json({ status: 'success', message: 'Account Validated.', token, url: '', accountType: 'growtopia' });
+    });
+
+    // GT itemsfile (kucuk stub - gercek items.dat icin /assets/items.dat yerlestirilebilir)
+    app.get('/growtopia/cache/*', (req, res, next) => next());
 
     app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
     app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
@@ -334,11 +370,44 @@ class WebServer {
     });
   }
 
+  // ENet sunucusu bunu kullanir: HTTPS login dashboard'tan gelen token'i dogrular.
+  consumeLoginToken(token) {
+    const t = this.loginTokens.get(token);
+    if (!t) return null;
+    if (t.until < Date.now()) { this.loginTokens.delete(token); return null; }
+    this.loginTokens.delete(token);
+    return this.ctx.players.data.players[t.key] || null;
+  }
+
   listen(port, host) {
     return new Promise(resolve => {
       this.server.listen(port, host, () => {
-        this.log.success(`Web paneli http://${host}:${port}/admin (oyun istemcisi: /play)`);
+        this.log.success(`HTTP: http://${host}:${port}/admin (oyun: /play)`);
         resolve();
+      });
+    });
+  }
+
+  startHttps() {
+    const cfg = this.ctx.config.network;
+    const sslDir = path.resolve(__dirname, '..', '..', 'data', 'runtime', 'ssl');
+    const keyPath = path.join(sslDir, 'server.key');
+    const crtPath = path.join(sslDir, 'server.crt');
+    if (!fs.existsSync(keyPath) || !fs.existsSync(crtPath)) {
+      this.log.warn('SSL sertifikalari yok. HTTPS basliyamayacak. `npm run gen-cert` calistirin.');
+      return Promise.resolve(false);
+    }
+    const opts = { key: fs.readFileSync(keyPath), cert: fs.readFileSync(crtPath) };
+    this.httpsServer = https.createServer(opts, this.app);
+    const port = cfg.loginPort || 8443;
+    return new Promise(resolve => {
+      this.httpsServer.listen(port, cfg.webHost, () => {
+        this.log.success(`HTTPS (GT login dashboard): https://${cfg.webHost}:${port}/player/login/dashboard`);
+        resolve(true);
+      });
+      this.httpsServer.on('error', (e) => {
+        this.log.error('HTTPS hata: ' + e.message + ' (port:' + port + ')');
+        resolve(false);
       });
     });
   }
@@ -347,6 +416,7 @@ class WebServer {
     if (this.adminWss) for (const c of this.adminWss.clients) c.close();
     if (this.adminWss) this.adminWss.close();
     this.server.close();
+    if (this.httpsServer) this.httpsServer.close();
   }
 }
 
