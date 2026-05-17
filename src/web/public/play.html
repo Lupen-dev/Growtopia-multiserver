@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="tr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Oyna - GrowTurk</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/game.css">
+</head><body class="game-body">
+<div id="auth" class="auth-overlay">
+  <div class="auth-card">
+    <h2>GrowTurk MegaServer</h2>
+    <input id="username" placeholder="Kullanici adi (3-20)">
+    <input id="password" type="password" placeholder="Sifre (4+)">
+    <div class="row"><button id="btnLogin">Giris</button><button id="btnRegister" class="secondary">Kayit Ol</button></div>
+    <div id="authError" class="err"></div>
+    <small>Hesabin yoksa "Kayit Ol" ile olusturabilirsin. Sifreni unutma.</small>
+  </div>
+</div>
+
+<div id="game" class="game-shell" style="display:none">
+  <header class="game-header">
+    <div class="brand">GrowTurk</div>
+    <div class="stats">
+      <span>Oyuncu: <b id="hName">-</b></span>
+      <span>Seviye: <b id="hLvl">1</b></span>
+      <span>XP: <b id="hXp">0</b></span>
+      <span>Gems: <b id="hGems">0</b></span>
+      <span>HP: <b id="hHp">100</b></span>
+      <span>Dunya: <b id="hWorld">START</b></span>
+    </div>
+    <button id="btnLogout" class="secondary">Cikis</button>
+  </header>
+  <main class="game-main">
+    <aside class="side left">
+      <h4>Online Oyuncular</h4>
+      <ul id="onlineList"></ul>
+      <h4>Aktif Olaylar</h4>
+      <ul id="eventList"></ul>
+    </aside>
+    <section class="canvas-wrap">
+      <canvas id="canvas" width="900" height="450"></canvas>
+      <div class="hint">Hareket: WASD veya oklar / Blok kir-koy: tikla. Cevre semboliktir.</div>
+    </section>
+    <aside class="side right">
+      <h4>Envanter</h4>
+      <ul id="invList"></ul>
+    </aside>
+  </main>
+  <section class="chat">
+    <div id="chatLog" class="chat-log"></div>
+    <form id="chatForm" autocomplete="off">
+      <input id="chatInput" placeholder="Mesaj veya /komut yaz. /help" maxlength="200">
+      <button>Gonder</button>
+    </form>
+  </section>
+</div>
+<script src="/js/game.js"></script>
+</body></html>

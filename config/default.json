@@ -1,0 +1,56 @@
+{
+  "server": {
+    "name": "GrowTurk MegaServer",
+    "motd": "Hosgeldin maceraci! /help ile baslayabilirsin.",
+    "maxPlayers": 500,
+    "tickRate": 20,
+    "timezone": "Europe/Istanbul",
+    "language": "tr"
+  },
+  "network": {
+    "gameHost": "0.0.0.0",
+    "gamePort": 17091,
+    "webHost": "0.0.0.0",
+    "webPort": 8080
+  },
+  "economy": {
+    "startingGems": 500,
+    "dailyReward": 250,
+    "voteReward": 500,
+    "tradeTaxPercent": 2,
+    "killReward": 50
+  },
+  "leveling": {
+    "xpPerLevel": 100,
+    "xpMultiplier": 1.5,
+    "maxLevel": 250
+  },
+  "activities": {
+    "fishingCooldownSec": 8,
+    "miningCooldownSec": 6,
+    "farmingCooldownSec": 10,
+    "casinoMinBet": 10,
+    "casinoMaxBet": 100000,
+    "lotteryTicketPrice": 100,
+    "lotteryDrawIntervalMin": 60,
+    "quizIntervalMin": 30,
+    "parkourIntervalMin": 45,
+    "bossRaidIntervalMin": 90
+  },
+  "moderation": {
+    "muteDefaultMin": 10,
+    "jailDefaultMin": 30,
+    "chatRateLimitPerSec": 2,
+    "maxWarnsBeforeBan": 5,
+    "filteredWords": ["badword1", "badword2"]
+  },
+  "web": {
+    "sessionTtlHours": 24,
+    "rateLimitPerMin": 120
+  },
+  "admin": {
+    "defaultUsername": "admin",
+    "defaultPassword": "growtopia123",
+    "note": "Lutfen ilk girisinizde sifreyi degistirin."
+  }
+}

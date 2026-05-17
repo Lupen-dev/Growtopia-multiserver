@@ -1,0 +1,28 @@
+.game-body { overflow: hidden; }
+.game-shell { display: flex; flex-direction: column; height: 100vh; }
+.game-header { display: flex; align-items: center; gap: 16px; padding: 8px 16px;
+  background: rgba(0,0,0,0.4); border-bottom: 1px solid var(--border); }
+.game-header .brand { font-weight: 800; color: var(--accent); }
+.game-header .stats { display: flex; gap: 14px; flex: 1; color: var(--muted); font-size: 13px; }
+.game-header .stats b { color: var(--text); }
+.game-main { display: grid; grid-template-columns: 220px 1fr 220px; gap: 8px; flex: 1; min-height: 0; padding: 8px; }
+.side { background: var(--panel); border: 1px solid var(--border); padding: 10px; border-radius: 8px; overflow-y: auto; }
+.side h4 { margin: 6px 0 8px; color: var(--accent); }
+.side ul { list-style: none; padding: 0; margin: 0; font-size: 13px; }
+.side li { padding: 4px 6px; border-bottom: 1px dashed var(--border); display: flex; justify-content: space-between; }
+.canvas-wrap { background: #0a0d1a; border: 1px solid var(--border); border-radius: 8px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px; }
+#canvas { background: #1a2238; border-radius: 6px; max-width: 100%; height: auto; cursor: crosshair; }
+.canvas-wrap .hint { color: var(--muted); font-size: 12px; margin-top: 6px; }
+.chat { background: var(--panel); border-top: 1px solid var(--border); padding: 8px; display: flex; flex-direction: column; gap: 6px; max-height: 240px; }
+.chat-log { flex: 1; overflow-y: auto; font-size: 13px; padding: 4px; background: var(--bg);
+  border-radius: 6px; min-height: 120px; }
+.chat-log .msg { padding: 2px 4px; }
+.chat-log .msg .name { font-weight: bold; }
+.chat-log .sys { color: var(--accent2); font-style: italic; }
+.chat-log .err { color: var(--bad); }
+.chat-log .ok { color: var(--good); }
+.chat-log .shout { color: var(--warn); font-weight: bold; }
+.chat-log .pm { color: var(--accent); }
+#chatForm { display: flex; gap: 6px; }
+#chatForm input { flex: 1; }

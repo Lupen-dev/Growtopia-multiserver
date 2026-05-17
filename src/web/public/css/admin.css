@@ -1,0 +1,33 @@
+.admin-body { background: var(--bg); }
+.admin-header { display: flex; align-items: center; gap: 14px; padding: 10px 16px;
+  background: rgba(0,0,0,0.45); border-bottom: 1px solid var(--border); flex-wrap: wrap; position: sticky; top: 0; z-index: 100; }
+.admin-header .brand { font-weight: 800; color: var(--accent); margin-right: 8px; }
+.admin-header .who { color: var(--muted); font-size: 13px; }
+.admin-header .role { padding: 2px 8px; background: var(--accent); color: #051018; border-radius: 12px; font-weight: 700; font-size: 11px; margin-left: 4px; }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
+.tabs .tab { background: var(--panel); color: var(--text); font-weight: 500; padding: 6px 10px; font-size: 13px; }
+.tabs .tab.active { background: var(--accent); color: #051018; }
+.admin-main { padding: 16px; max-width: 1400px; margin: 0 auto; }
+.view h3 { color: var(--accent); margin-top: 22px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.cards .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+.cards .card .label { color: var(--muted); font-size: 12px; display: block; }
+.cards .card b { font-size: 24px; color: var(--text); }
+table.data { width: 100%; border-collapse: collapse; margin: 10px 0; background: var(--panel); border-radius: 8px; overflow: hidden; font-size: 13px; }
+table.data th, table.data td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+table.data th { background: var(--panel2); color: var(--accent); }
+table.data tr:hover { background: var(--bg2); }
+table.data button { padding: 4px 8px; font-size: 12px; }
+.detail { background: var(--panel); padding: 14px; border-radius: 8px; border: 1px solid var(--border); margin-top: 14px; }
+.detail h4 { color: var(--accent); margin: 0 0 8px; }
+.event-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.event-card { background: var(--panel); border: 1px solid var(--border); padding: 12px; border-radius: 8px; }
+.event-card.active { border-color: var(--good); box-shadow: 0 0 0 1px var(--good); }
+.console-out { background: #000; color: #cfe; font-family: monospace; font-size: 12px;
+  padding: 10px; border-radius: 6px; height: 280px; overflow-y: auto; white-space: pre-wrap; border: 1px solid var(--border); }
+.chat-live { background: #000; color: #cdf; font-family: monospace; font-size: 13px; padding: 10px;
+  border-radius: 8px; height: 70vh; overflow-y: auto; }
+.chat-live .l { padding: 1px 0; }
+.chat-live .sys { color: var(--accent2); }
+.chat-live .pm { color: var(--warn); }
+.chat-live .shout { color: var(--bad); }

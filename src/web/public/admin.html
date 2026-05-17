@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="tr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Panel - GrowTurk</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/admin.css">
+</head><body class="admin-body">
+
+<div id="login" class="auth-overlay">
+  <div class="auth-card">
+    <h2>Yonetim Paneli</h2>
+    <input id="lUser" placeholder="Kullanici adi" value="admin">
+    <input id="lPass" type="password" placeholder="Sifre" value="growtopia123">
+    <button id="btnAdminLogin">Giris</button>
+    <div id="loginError" class="err"></div>
+    <small>Varsayilan: admin / growtopia123. Lutfen ilk giriste degistir.</small>
+  </div>
+</div>
+
+<div id="panel" style="display:none">
+  <header class="admin-header">
+    <div class="brand">GrowTurk Admin</div>
+    <div class="who">
+      <span id="meName">-</span> <span id="meRole" class="role"></span>
+    </div>
+    <nav class="tabs">
+      <button data-tab="dashboard" class="tab active">Pano</button>
+      <button data-tab="players" class="tab">Oyuncular</button>
+      <button data-tab="worlds" class="tab">Dunyalar</button>
+      <button data-tab="chat" class="tab">Canli Sohbet</button>
+      <button data-tab="bans" class="tab">Banlar</button>
+      <button data-tab="audit" class="tab">Denetim</button>
+      <button data-tab="events" class="tab">Olaylar</button>
+      <button data-tab="items" class="tab">Esyalar</button>
+      <button data-tab="economy" class="tab">Ekonomi</button>
+      <button data-tab="console" class="tab">Konsol</button>
+      <button data-tab="users" class="tab">Yonetici Hesaplari</button>
+      <button data-tab="account" class="tab">Hesap</button>
+    </nav>
+    <button id="btnAdminLogout" class="secondary">Cikis</button>
+  </header>
+
+  <main class="admin-main">
+    <section class="view" id="dashboard">
+      <div class="cards">
+        <div class="card"><span class="label">Online</span><b id="dOnline">-</b></div>
+        <div class="card"><span class="label">Toplam Oyuncu</span><b id="dTotal">-</b></div>
+        <div class="card"><span class="label">Dunya</span><b id="dWorlds">-</b></div>
+        <div class="card"><span class="label">Uptime</span><b id="dUptime">-</b></div>
+        <div class="card"><span class="label">RAM</span><b id="dRam">-</b></div>
+        <div class="card"><span class="label">Piyango Havuzu</span><b id="dPot">-</b></div>
+      </div>
+      <h3>Aktif Olaylar</h3>
+      <div id="dEvents"></div>
+      <h3>Hizli Duyuru</h3>
+      <div class="inline"><input id="bcastText" placeholder="Tum oyunculara duyuru..."><button id="btnBcast">Yayinla</button></div>
+      <h3>Top 5 Zengin</h3>
+      <ol id="dTopRich"></ol>
+    </section>
+
+    <section class="view" id="players" style="display:none">
+      <div class="inline">
+        <input id="pSearch" placeholder="Oyuncu ara..."><label><input type="checkbox" id="pOnline"> Sadece online</label>
+        <button id="btnPSearch">Ara</button>
+      </div>
+      <table class="data">
+        <thead><tr><th>Ad</th><th>Rol</th><th>Lvl</th><th>Gems</th><th>Dunya</th><th>Durum</th><th></th></tr></thead>
+        <tbody id="playerTable"></tbody>
+      </table>
+      <div id="playerDetail" class="detail"></div>
+    </section>
+
+    <section class="view" id="worlds" style="display:none">
+      <div class="inline"><input id="wNew" placeholder="YENI DUNYA"><button id="btnWNew">Olustur</button></div>
+      <table class="data"><thead><tr><th>Ad</th><th>Sahip</th><th>Ziyaret</th><th>Icinde</th><th>Bloklar</th><th>Ozel</th><th></th></tr></thead>
+        <tbody id="worldTable"></tbody></table>
+    </section>
+
+    <section class="view" id="chat" style="display:none">
+      <div class="chat-live" id="chatLive"></div>
+    </section>
+
+    <section class="view" id="bans" style="display:none">
+      <h3>Banlar</h3><table class="data"><thead><tr><th>Ad</th><th>Kim</th><th>Sebep</th><th>Bitis</th></tr></thead><tbody id="banTable"></tbody></table>
+      <h3>Susturulanlar</h3><table class="data"><thead><tr><th>Ad</th><th>Kim</th><th>Sebep</th><th>Bitis</th></tr></thead><tbody id="muteTable"></tbody></table>
+    </section>
+
+    <section class="view" id="audit" style="display:none">
+      <table class="data"><thead><tr><th>Zaman</th><th>Eylem</th><th>Kim</th><th>Hedef</th><th>Detay</th></tr></thead><tbody id="auditTable"></tbody></table>
+    </section>
+
+    <section class="view" id="events" style="display:none">
+      <div id="eventGrid" class="event-grid"></div>
+    </section>
+
+    <section class="view" id="items" style="display:none">
+      <input id="itemSearch" placeholder="Esya ara...">
+      <table class="data"><thead><tr><th>ID</th><th>Ad</th><th>Kategori</th><th>Nadirlik</th><th>Deger</th></tr></thead><tbody id="itemTable"></tbody></table>
+    </section>
+
+    <section class="view" id="economy" style="display:none">
+      <h3>Top 25 Zengin</h3>
+      <ol id="topRich"></ol>
+    </section>
+
+    <section class="view" id="console" style="display:none">
+      <p class="muted">Sunucu konsoluna komut gonder (sadece owner). help, status, save, event start &lt;id&gt;...</p>
+      <div id="consoleOut" class="console-out"></div>
+      <form id="consoleForm" class="inline"><input id="consoleIn" placeholder="komut..."><button>Calistir</button></form>
+      <h3>Canli Sunucu Loglari</h3>
+      <div id="logStream" class="console-out"></div>
+    </section>
+
+    <section class="view" id="users" style="display:none">
+      <h3>Yonetici Hesaplari</h3>
+      <div class="inline">
+        <input id="wuName" placeholder="kullanici"><input id="wuPass" type="password" placeholder="sifre">
+        <select id="wuRole"><option>helper</option><option>mod</option><option selected>admin</option><option>owner</option></select>
+        <button id="btnWuAdd">Ekle</button>
+      </div>
+      <table class="data"><thead><tr><th>Ad</th><th>Rol</th><th>Olusturuldu</th><th></th></tr></thead><tbody id="wuTable"></tbody></table>
+    </section>
+
+    <section class="view" id="account" style="display:none">
+      <h3>Sifre Degistir</h3>
+      <div class="inline"><input id="newPass" type="password" placeholder="yeni sifre"><button id="btnChangePass">Degistir</button></div>
+      <div id="passResult"></div>
+    </section>
+  </main>
+</div>
+<script src="/js/admin.js"></script>
+</body></html>

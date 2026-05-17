@@ -1,0 +1,27 @@
+{
+  "name": "growtopia-multiserver",
+  "version": "1.0.0",
+  "description": "Eglenceli, cok komutlu, web panelli ozel Growtopia sunucusu (macOS/Linux)",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node src/index.js --dev",
+    "seed": "node scripts/seed.js",
+    "reset": "node scripts/reset.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.17.0"
+  },
+  "keywords": [
+    "growtopia",
+    "private-server",
+    "game-server",
+    "multiserver"
+  ],
+  "license": "MIT"
+}
