@@ -15,12 +15,15 @@ class WebServer {
     this.auth = new WebAuth(ctx.db, ctx.config, ctx.logger);
     this.app.use(express.json({ limit: '256kb' }));
     this.app.use(express.urlencoded({ extended: false }));
-    // GT istemcisi isteklerini logla (sorun gidermek icin)
+    // GT istemcisi isteklerini detayli logla (sorun gidermek icin)
     this.app.use((req, res, next) => {
       const ua = req.get('user-agent') || '';
-      const isGT = /growtopia/i.test(ua) || req.path.startsWith('/growtopia/') || req.path.startsWith('/player/login');
+      const isGT = /growtopia|ubiservices/i.test(ua) || req.path.startsWith('/growtopia/') || req.path.startsWith('/player/login') || req.path.startsWith('/cache/') || req.path.startsWith('/ubi');
       if (isGT) {
-        this.log.info(`[GT-HTTP] ${req.method} ${req.path} ua="${ua.slice(0,80)}"`);
+        const bodyPreview = req.method === 'POST'
+          ? ' body=' + JSON.stringify(req.body || {}).slice(0, 200)
+          : '';
+        this.log.info(`[GT-HTTP] ${req.method} ${req.originalUrl} ua="${ua.slice(0,60)}"${bodyPreview}`);
       }
       next();
     });
@@ -290,26 +293,42 @@ class WebServer {
     app.get('/account', (req, res) => res.sendFile(path.join(__dirname, 'public', 'account.html')));
 
     // GT istemcisinin baglandigi server_data endpoint'i (HTTPS bekler)
+    // Modern UbiServices SDK formati: #maint COMMENT olduğu icin atılır,
+    // loginurl modern istemcide login.growtopia1.com bekleniyor.
     app.all('/growtopia/server_data.php', (req, res) => {
       const cfg = ctx.config.network;
       const reachableHost = cfg.publicHost || (cfg.gameHost === '0.0.0.0' ? '127.0.0.1' : cfg.gameHost);
-      // GT istemcisi 443'te ise port belirtilmez (default HTTPS).
-      // Aksi halde "host:port" verilir.
-      const actualPort = (this.httpsServer && this.httpsServer.address && this.httpsServer.address()) ? this.httpsServer.address().port : (cfg.loginPort || 443);
-      const loginUrl = actualPort === 443 ? reachableHost : `${reachableHost}:${actualPort}`;
       const body =
         `server|${reachableHost}\n` +
         `port|${cfg.gamePort}\n` +
         `type|1\n` +
-        `#maint|server is under maintenance\n` +
-        `meta|growturk\n` +
+        `#maint|server is under maintenance, We will be back online shortly. Thank you for your patience.\n` +
         `beta_server|${reachableHost}\n` +
         `beta_port|${cfg.gamePort}\n` +
         `beta_type|1\n` +
-        `loginurl|${loginUrl}\n` +
-        `type2|1\n` +
+        `meta|ignoremeta\n` +
         `RTENDMARKERBS1001`;
-      res.set('Content-Type', 'text/plain').send(body);
+      res.set({
+        'Content-Type': 'text/html',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }).send(body);
+    });
+
+    // Modern GT istemcisi UbiServices ile bazen ek endpoint'ler ister.
+    // Bilinmeyen /growtopia/* isteklerine 200 dondur ki client cikmasin.
+    app.get('/growtopia/cache/*', (req, res) => {
+      const cachePath = path.join(__dirname, '..', '..', 'data', 'cache', req.path.replace('/growtopia/cache/', ''));
+      if (fs.existsSync(cachePath)) return res.sendFile(cachePath);
+      res.status(200).set('Content-Type', 'application/octet-stream').send(Buffer.alloc(0));
+    });
+    app.get('/growtopia/version.php', (req, res) => res.send('100'));
+    app.all('/ubiservices/*', (req, res) => res.json({ status: 'success' }));
+    app.all('/growtopia/*', (req, res, next) => {
+      // Catch-all: bilinmeyen GT path'lerini de logla, 200 dondur
+      this.log.warn(`[GT-HTTP] BILINMEYEN endpoint: ${req.method} ${req.originalUrl}`);
+      res.status(200).send('');
     });
 
     // --- GT istemcisi yeni HTTPS-tabanli giris akisi ---
