@@ -13,9 +13,10 @@
     "gameEnetEnabled": true,
     "webHost": "0.0.0.0",
     "webPort": 8080,
-    "loginPort": 8443,
+    "loginPort": 443,
+    "loginPortFallback": 8443,
     "publicHost": "127.0.0.1",
-    "note": "gamePort=17091 ENet (growtopia.js). webPort=8080 HTTP panel. loginPort=8443 HTTPS (GT istemci dashboard + server_data.php). publicHost: hosts dosyasindaki domain (lan icin 'www.growtopia1.com')."
+    "note": "GT istemcisi server_data.php icin 443 bekler. Sudo ile baslatmazsan otomatik 8443'e dusulur ve portfwd.sh ile yonlendirme yapman istenir."
   },
   "economy": {
     "startingGems": 500,

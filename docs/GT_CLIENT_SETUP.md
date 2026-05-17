@@ -64,22 +64,52 @@ bulunur.
 
 ## 3. Portlar
 
-`config/default.json`:
-
-```json
-"network": {
-  "gameHost": "0.0.0.0",
-  "gamePort": 17091,
-  "webHost": "0.0.0.0",
-  "webPort": 8080,
-  "loginPort": 8443,
-  "publicHost": "127.0.0.1"
-}
-```
-
 - **17091** UDP - ENet oyun (Growtopia protokolu)
 - **8080** TCP - Web paneli + tarayici oyun istemcisi
-- **8443** TCP - HTTPS GT istemci dashboard + server_data.php
+- **443** TCP - **GT istemcisi sadece bu portu bekler** (HTTPS varsayilani)
+
+GT istemcisi `https://www.growtopia1.com/growtopia/server_data.php` istegini
+**her zaman 443'e** yapar. Custom port (8443 vb.) kullanmaz. Bu nedenle
+sunucumuzun 443'te dinlemesi sart.
+
+### Port 443 nasil acilir (3 yol)
+
+**Yol 1: Port yonlendirme (onerilen - sudo bir kere, sonra her seferinde sudosuz)**
+
+```bash
+./scripts/portfwd.sh
+# veya: npm run portfwd
+```
+
+macOS'ta `pfctl`, Linux'ta `iptables` ile 443 -> 8443 yonlendirir.
+Sunucu makinen yeniden baslatildiktan sonra tekrar yapilmasi gerekir.
+
+**Yol 2: Sudo ile baslat (her seferinde sudo)**
+
+```bash
+sudo ./start.sh
+```
+
+Node sureci root yetkisiyle calisir, dogrudan 443'u baglar.
+
+**Yol 3: authbind (Linux only)**
+
+```bash
+sudo apt install authbind
+sudo touch /etc/authbind/byport/443 && sudo chmod 500 /etc/authbind/byport/443
+sudo chown $USER /etc/authbind/byport/443
+authbind --deep node src/index.js
+```
+
+### Sunucu sudo'suz baslatilirsa ne olur?
+
+Otomatik olarak 8443'e duser ve sana asagidaki gibi talimat verir:
+```
+HTTPS (fallback): https://0.0.0.0:8443/player/login/dashboard
+!! GT istemcisi 443 bekler !! Iki secenek var:
+   1) Port yonlendirme: ./scripts/portfwd.sh 8443  (sudo, bir kere)
+   2) Sudo ile baslat: sudo ./start.sh             (her seferinde)
+```
 
 ## 4. Login Akisi
 
@@ -117,7 +147,18 @@ Henuz eksik (gercek tam istemci uyumlulugu icin uzerine eklenmeli):
   bilmek ister; aksi takdirde "Connection lost" verir.
 - Tum gelisen opcode'lar (punch, trade, dropped, vending, vb.).
 
-## 6. Sorun Giderme
+## 6. Tani Araci
+
+Sunuda **`./scripts/doctor.sh`** veya **`npm run doctor`** komutu hepsini
+tek seferde kontrol eder: hosts dosyasi, DNS, sertifika, SAN, Keychain
+guveni (macOS), 443 ve 17091 portlari, sunucu sagligi.
+
+## 7. Sorun Giderme
+
+**"check your internet and make sure you not using VPN"** (en sik):
+- GT istemcisi `server_data.php`'ye ulasamiyor demek.
+- `npm run doctor` calistir. Genelde port 443 dinlemiyordur (`./scripts/portfwd.sh` veya `sudo ./start.sh`).
+- Veya hosts dosyasi/DNS cache sorunu.
 
 **"Connection Lost"**:
 - Hosts dosyasi yonlendirme dogru mu? `nslookup www.growtopia1.com` 127.0.0.1 donmeli.

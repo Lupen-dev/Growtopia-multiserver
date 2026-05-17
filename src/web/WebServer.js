@@ -284,7 +284,10 @@ class WebServer {
     app.all('/growtopia/server_data.php', (req, res) => {
       const cfg = ctx.config.network;
       const reachableHost = cfg.publicHost || (cfg.gameHost === '0.0.0.0' ? '127.0.0.1' : cfg.gameHost);
-      const loginUrl = (cfg.publicHost || '127.0.0.1') + ':' + (cfg.loginPort || 8443);
+      // GT istemcisi 443'te ise port belirtilmez (default HTTPS).
+      // Aksi halde "host:port" verilir.
+      const actualPort = (this.httpsServer && this.httpsServer.address && this.httpsServer.address()) ? this.httpsServer.address().port : (cfg.loginPort || 443);
+      const loginUrl = actualPort === 443 ? reachableHost : `${reachableHost}:${actualPort}`;
       const body =
         `server|${reachableHost}\n` +
         `port|${cfg.gamePort}\n` +
@@ -398,17 +401,38 @@ class WebServer {
       return Promise.resolve(false);
     }
     const opts = { key: fs.readFileSync(keyPath), cert: fs.readFileSync(crtPath) };
-    this.httpsServer = https.createServer(opts, this.app);
-    const port = cfg.loginPort || 8443;
-    return new Promise(resolve => {
-      this.httpsServer.listen(port, cfg.webHost, () => {
-        this.log.success(`HTTPS (GT login dashboard): https://${cfg.webHost}:${port}/player/login/dashboard`);
-        resolve(true);
-      });
-      this.httpsServer.on('error', (e) => {
-        this.log.error('HTTPS hata: ' + e.message + ' (port:' + port + ')');
-        resolve(false);
-      });
+    const tryPort = (port) => new Promise(resolve => {
+      const srv = https.createServer(opts, this.app);
+      srv.once('error', (e) => resolve({ ok: false, error: e, port }));
+      srv.listen(port, cfg.webHost, () => resolve({ ok: true, server: srv, port }));
+    });
+
+    const primary = cfg.loginPort || 443;
+    const fallback = cfg.loginPortFallback || 8443;
+
+    return tryPort(primary).then(async (r) => {
+      if (r.ok) {
+        this.httpsServer = r.server;
+        this.log.success(`HTTPS (GT login): https://${cfg.webHost}:${r.port}/player/login/dashboard`);
+        if (r.port !== 443) this.log.warn(`GT istemcisi 443 bekler. Su an ${r.port}. Yonlendirme icin: ./scripts/portfwd.sh ${r.port}`);
+        return true;
+      }
+      if (r.error.code === 'EACCES' && primary < 1024) {
+        this.log.warn(`Port ${primary} icin root yetkisi gerekli. ${fallback}'a dusuluyor...`);
+        const r2 = await tryPort(fallback);
+        if (r2.ok) {
+          this.httpsServer = r2.server;
+          this.log.success(`HTTPS (fallback): https://${cfg.webHost}:${r2.port}/player/login/dashboard`);
+          this.log.warn('!! GT istemcisi 443 bekler !! Iki secenek var:');
+          this.log.warn(`   1) Port yonlendirme: ./scripts/portfwd.sh ${r2.port}  (sudo, bir kere)`);
+          this.log.warn(`   2) Sudo ile baslat: sudo ./start.sh                  (her seferinde)`);
+          return true;
+        }
+        this.log.error('HTTPS fallback de basarisiz: ' + (r2.error && r2.error.message));
+        return false;
+      }
+      this.log.error('HTTPS baslamadi: ' + r.error.message);
+      return false;
     });
   }
 

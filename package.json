@@ -9,7 +9,9 @@
     "dev": "node src/index.js --dev",
     "seed": "node scripts/seed.js",
     "reset": "node scripts/reset.js",
-    "gen-cert": "node scripts/gen-cert.js"
+    "gen-cert": "node scripts/gen-cert.js",
+    "portfwd": "bash scripts/portfwd.sh",
+    "doctor": "bash scripts/doctor.sh"
   },
   "engines": {
     "node": ">=18.0.0"
