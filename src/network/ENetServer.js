@@ -91,12 +91,30 @@ type|local
       netID, player: null, state: 'awaiting_login',
       loginAttempts: 0, connectedAt: Date.now()
     });
-    // 1. paket: REQUEST_LOGIN_INFO (type 1, hicbir body yok)
+    // 1. paket: REQUEST_LOGIN_INFO (type 1, hicbir body yok) - GT HELLO
     try {
       this.client.send(netID, 0, TextPacket.from(0x1));
-      this.log.info(`>> netID=${netID} HELLO (type=1, body=empty) gonderildi`);
+      this.log.info(`>> netID=${netID} HELLO (type=1) gonderildi`);
     } catch (e) { this.log.error('hello gonderemedi: ' + e.message); }
-    this.log.info(`baglanti #${netID} (ENet handshake basarili, GT istemci paket bekleniyor)`);
+    this.log.info(`baglanti #${netID} (ENet handshake basarili, login paketi bekleniyor)`);
+  }
+
+  // Klasik GT private server login dialog'u. UbiServices clienti login_request'i
+  // dogrudan gondermezse bu dialog'u acariz; oyuncu growID + sifre girer.
+  sendLoginDialog(netID) {
+    const dialog =
+`set_default_color|\`o
+add_label_with_icon|big|\`wGrowTurk - GrowID Login|left|6
+add_spacer|small|
+add_textbox|\`oHesabina giris yap veya yeni hesap olustur.|left
+add_text_input|growID|GrowID|YOUR_GROWID|18
+add_text_input_password|password|Sifre||30
+add_spacer|small|
+add_textbox|\`9Hesabin yoksa otomatik olusturulur.|left
+add_quick_exit|
+end_dialog|GROWID_LOGIN_VALIDATE|Iptal|Giris|`;
+    this.sendVariant(netID, 'OnDialogRequest', dialog);
+    this.log.info(`>> netID=${netID} GROWID_LOGIN_VALIDATE dialog gonderildi`);
   }
 
   onDisconnect(netID) {
@@ -153,10 +171,33 @@ type|local
     const action = map.action || '';
 
     if (session.state === 'awaiting_login') {
-      const name = (map.requestedName || map.tankIDName || map.growid || '').trim();
+      // 1) Klasik login_request: client tankIDName/tankIDPass/requestedName direkt yollar
+      const name = (map.requestedName || map.tankIDName || map.growid || map.growID || '').trim();
       const password = map.tankIDPass || map.password || '';
+
+      // 2) Dialog_return: OnDialogRequest cevabi olarak gelir
+      if (action === 'dialog_return' && map.dialog_name === 'GROWID_LOGIN_VALIDATE') {
+        const dname = (map.growID || map.growid || '').trim();
+        const dpass = map.password || '';
+        this.log.info(`<< netID=${session.netID} dialog GROWID_LOGIN_VALIDATE -> ${dname}`);
+        if (!dname) {
+          this.sendLoginDialog(session.netID);
+          return;
+        }
+        this.attemptLogin(session, dname, dpass);
+        return;
+      }
+
+      // 3) "action|enter_game" gibi bos ilk paket - dialog yolla
+      if (!name && (action === 'enter_game' || action === 'quit_to_exit' || !action)) {
+        this.log.info(`<< netID=${session.netID} login icin dialog gonderiliyor (ilk paket bos)`);
+        this.sendLoginDialog(session.netID);
+        return;
+      }
+
       if (!name) {
-        this.log.debug('login bekleniyor ama isim yok', { map });
+        this.log.debug(`<< netID=${session.netID} login bekleniyor, isim yok: ` + JSON.stringify(map).slice(0, 200));
+        this.sendLoginDialog(session.netID);
         return;
       }
       this.attemptLogin(session, name, password);
@@ -253,7 +294,14 @@ type|local
     });
     this.log.success(`giris: ${name} (netID ${session.netID})`);
 
+    // Klasik GT private server login accept sirasi:
+    // 1) Magic accept variant - client buradan sonra spawn paketi kabul eder
+    this.sendVariant(session.netID, 'OnSuperMainStartAcceptLogonHrdxs47254722215a', 0, 'ubistatic-a.akamaihd.net', '0098/41/01/refs/heads/master/cache/', 'cc.cz.madkite.freedom org.aqua.gg idv.aqua.bulldog com.cih.gamecih2 com.cih.gamecih com.cih.game_cih cn.maocai.gamekiller com.gmd.speedtime org.dax.attack com.x0.strai.frep com.x0.strai.free org.cheatengine.cegui org.sbtools.gamehack com.skgames.traffikrider org.sbtoods.gamehaca com.skype.ralder org.cheatengine.cegui.xx.multi1458919170111 com.prohiro.macro me.autotouch.autotouch com.cygery.repetitouch.free com.cygery.repetitouch.pro com.proziro.zacro com.slash.gamebuster', 'proto=200|choosemusic=audio/mp3/about_theme.mp3|active_holiday=0|wing_week_day=0|ubi_week_day=0|server_tick=24400370|clash_active=0|drop_lavacheck_faster=1|isPayingUser=1|usingStoreNavigation=1|enableInventoryTab=1|bigBackpack=1|');
+    this.log.info(`>> netID=${session.netID} OnSuperMainStartAcceptLogonHrdxs gonderildi`);
+
+    // 2) Bux gem sayisi
     this.sendSetBux(session.netID, res.player.gems);
+    // 3) Dunyaya gir (OnSpawn dahil)
     this.enterWorldFor(session, res.player.world || 'START');
   }
 
