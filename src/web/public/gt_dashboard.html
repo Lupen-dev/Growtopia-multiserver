@@ -1,14 +1,18 @@
 <!doctype html>
 <html lang="tr"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>GrowTurk - GrowID Login</title>
+<title>Growtopia - GrowID Login</title>
 <style>
   html, body { margin: 0; padding: 0; background: linear-gradient(135deg,#0e1320,#15192b); color: #e8ecf5; font-family: -apple-system, Segoe UI, Roboto, sans-serif; min-height: 100vh; }
   body { display: grid; place-items: center; padding: 24px; }
   .card { background: #1c2238; border: 1px solid #2c3556; padding: 28px; border-radius: 12px; width: 100%; max-width: 380px; box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
   h1 { margin: 0 0 4px; background: linear-gradient(90deg,#6cd0ff,#b58cff); -webkit-background-clip: text; background-clip: text; color: transparent; font-size: 28px; }
   p.sub { color: #99a2c1; margin-top: 0; font-size: 13px; }
-  form { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+  .tabs { display: flex; gap: 6px; margin: 18px 0 10px; }
+  .tab { flex: 1; padding: 9px; text-align: center; background: #232a47; border-radius: 8px; cursor: pointer; font-size: 13px; border: 1px solid transparent; }
+  .tab.active { background: #2c3556; border-color: #6cd0ff; color: #6cd0ff; }
+  form { display: flex; flex-direction: column; gap: 10px; }
+  form.hidden { display: none; }
   label { font-size: 12px; color: #99a2c1; text-transform: uppercase; letter-spacing: 0.4px; }
   input { background: #232a47; color: #e8ecf5; border: 1px solid #2c3556; border-radius: 8px; padding: 12px; font-size: 14px; -webkit-appearance: none; }
   input:focus { outline: 2px solid #6cd0ff; outline-offset: -1px; }
@@ -19,16 +23,48 @@
 </head><body>
 <div class="card">
   <h1>GrowTurk</h1>
-  <p class="sub">GrowID ile giris yap. Hesabin yoksa otomatik olusturulur.</p>
-  <!-- Modern GT (UbiServices) WebView navigasyon olaylarini izler.
-       Form NATIVE submission yapar (JS fetch yok) ki client intercept etsin. -->
-  <form action="/player/login/validate" method="POST" autocomplete="on">
-    <label for="growID">GrowID</label>
-    <input id="growID" name="growID" placeholder="OYUNCU_ADIN" required minlength="3" maxlength="20" autocomplete="username" autocapitalize="off" autocorrect="off">
-    <label for="password">Sifre</label>
-    <input id="password" name="password" type="password" placeholder="Sifre" required minlength="4" autocomplete="current-password">
+  <p class="sub">Hesabina giris yap veya yeni hesap olustur.</p>
+  <div class="tabs">
+    <div class="tab active" data-tab="login">Giris</div>
+    <div class="tab" data-tab="register">Kayit</div>
+  </div>
+
+  <!-- LOGIN FORM (protokol 225 standart akis) -->
+  <form id="loginForm" action="/player/growid/login/validate" method="POST" autocomplete="on">
+    <input type="hidden" name="_token" value="{{ data }}">
+    <label for="growId-login">GrowID</label>
+    <input id="growId-login" name="growId" placeholder="OYUNCU_ADIN" required minlength="3" maxlength="20" pattern="[a-zA-Z0-9]+" autocomplete="username" autocapitalize="off" autocorrect="off">
+    <label for="password-login">Sifre</label>
+    <input id="password-login" name="password" type="password" placeholder="Sifre" required minlength="4" autocomplete="current-password">
     <button type="submit">GIRIS YAP</button>
   </form>
-  <small>v1.0 - GrowTurk MultiServer</small>
+
+  <!-- REGISTER FORM -->
+  <form id="registerForm" class="hidden" action="/player/growid/login/validate" method="POST" autocomplete="on">
+    <input type="hidden" name="_token" value="{{ data }}">
+    <input type="hidden" name="reg" value="1">
+    <label for="growId-reg">GrowID</label>
+    <input id="growId-reg" name="growId" placeholder="OYUNCU_ADIN" required minlength="3" maxlength="20" pattern="[a-zA-Z0-9]+" autocapitalize="off" autocorrect="off">
+    <label for="email-reg">E-posta (istege bagli)</label>
+    <input id="email-reg" name="email" type="email" placeholder="ornek@mail.com">
+    <label for="password-reg">Sifre</label>
+    <input id="password-reg" name="password" type="password" placeholder="Sifre" required minlength="4">
+    <label for="password-conf">Sifre (tekrar)</label>
+    <input id="password-conf" name="password_confirmation" type="password" placeholder="Sifre tekrar" required minlength="4">
+    <button type="submit">HESAP OLUSTUR</button>
+  </form>
+
+  <small>GrowTurk MultiServer - protokol 225</small>
 </div>
+<script>
+  const tabs = document.querySelectorAll('.tab');
+  const lf = document.getElementById('loginForm');
+  const rf = document.getElementById('registerForm');
+  tabs.forEach(t => t.addEventListener('click', () => {
+    tabs.forEach(x => x.classList.toggle('active', x === t));
+    const isLogin = t.dataset.tab === 'login';
+    lf.classList.toggle('hidden', !isLogin);
+    rf.classList.toggle('hidden', isLogin);
+  }));
+</script>
 </body></html>

@@ -293,12 +293,11 @@ class WebServer {
     app.get('/account', (req, res) => res.sendFile(path.join(__dirname, 'public', 'account.html')));
 
     // GT istemcisinin baglandigi server_data endpoint'i (HTTPS bekler).
-    // Modern protokol 225 (GT 5.45+): loginurl ve type2 KABUL EDILMIYOR (-1200 doner).
-    // Bu format'la client native ENet dialog'a duser, biz onu ENetServer'da hazirladik.
+    // Modern protokol 225 (GT 5.45+): loginurl varsa WebView dashboard'u acar.
     app.all('/growtopia/server_data.php', (req, res) => {
       const cfg = ctx.config.network;
       const gameHost = cfg.publicHost || (cfg.gameHost === '0.0.0.0' ? '127.0.0.1' : cfg.gameHost);
-      // Client'in protokol versiyonunu log'la (debug icin)
+      const loginDomain = cfg.loginDomain || 'www.growtopia1.com';
       if (req.body && req.body.protocol) {
         this.log.info(`[GT-CLIENT] version=${req.body.version} protocol=${req.body.protocol} platform=${req.body.platform}`);
       }
@@ -311,6 +310,7 @@ class WebServer {
         `beta_port|${cfg.gamePort}\n` +
         `beta_type|1\n` +
         `meta|undefined\n` +
+        `loginurl|${loginDomain}\n` +
         `RTENDMARKERBS1001`;
       res.set({
         'Content-Type': 'text/html',
@@ -321,7 +321,6 @@ class WebServer {
     });
 
     // Modern GT istemcisi UbiServices ile bazen ek endpoint'ler ister.
-    // Bilinmeyen /growtopia/* isteklerine 200 dondur ki client cikmasin.
     app.get('/growtopia/cache/*', (req, res) => {
       const cachePath = path.join(__dirname, '..', '..', 'data', 'cache', req.path.replace('/growtopia/cache/', ''));
       if (fs.existsSync(cachePath)) return res.sendFile(cachePath);
@@ -330,44 +329,118 @@ class WebServer {
     app.get('/growtopia/version.php', (req, res) => res.send('100'));
     app.all('/ubiservices/*', (req, res) => res.json({ status: 'success' }));
     app.all('/growtopia/*', (req, res, next) => {
-      // Catch-all: bilinmeyen GT path'lerini de logla, 200 dondur
       this.log.warn(`[GT-HTTP] BILINMEYEN endpoint: ${req.method} ${req.originalUrl}`);
       res.status(200).send('');
     });
 
-    // --- GT istemcisi yeni HTTPS-tabanli giris akisi ---
-    // 1) Client GET /player/login/dashboard'a gider, HTML form gosterilir.
-    // 2) Kullanici growID + password girer -> POST /player/login/validate.
-    // 3) Server token uretip JSON dondurur. Client token'i alip ENet'e gonderir.
-    app.get('/player/login/dashboard', (req, res) => {
-      res.sendFile(path.join(__dirname, 'public', 'gt_dashboard.html'));
+    // ============================================================
+    // GT istemcisi WebView login akisi (protokol 225 / GT 5.45+)
+    // Referans: YoruAkio/GTLogin, StileDevs/GrowServer
+    // ============================================================
+    //
+    // 1) GT istemcisi POST /player/login/dashboard yollar; body'de
+    //    pipe-delimited client bilgileri var (tankIDName, requestedName,
+    //    protocol, platform vs). Server bu body'yi base64'le encode edip
+    //    HTML template'inde {{ data }} yerine yapistirir, _token hidden
+    //    alani olarak doner.
+    // 2) Kullanici growId/sifre girer -> POST /player/growid/login/validate
+    // 3) Server validate eder, ENet token'i (base64) doner.
+    // 4) GT istemcisi WebView'i kapatir, ENet uzerinden token ile login.
+    //
+    const dashboardTemplatePath = path.join(__dirname, 'public', 'gt_dashboard.html');
+
+    function buildClientDataString(reqBody) {
+      // GT istemcisi pipe-delimited body yolluyor; express.urlencoded
+      // bunu key=value seklinde parse ediyor.
+      // Geri ceviriyoruz: key|value\n formatina.
+      if (!reqBody || typeof reqBody !== 'object') return '';
+      const lines = [];
+      for (const [k, v] of Object.entries(reqBody)) {
+        if (v === undefined || v === null) continue;
+        lines.push(`${k}|${v}`);
+      }
+      return lines.join('\n');
+    }
+
+    app.all('/player/login/dashboard', (req, res) => {
+      const clientData = buildClientDataString(req.body);
+      const encoded = Buffer.from(clientData, 'utf8').toString('base64');
+      this.log.info(`[GT-LOGIN] dashboard request, client data keys=${Object.keys(req.body || {}).join(',')}`);
+      try {
+        let html = fs.readFileSync(dashboardTemplatePath, 'utf8');
+        html = html.replace(/\{\{\s*data\s*\}\}/g, encoded);
+        res.set('Content-Type', 'text/html').send(html);
+      } catch (e) {
+        this.log.error('dashboard template hatasi: ' + e.message);
+        res.status(500).send('Template error');
+      }
     });
 
-    app.post('/player/login/validate', (req, res) => {
-      const growID = (req.body.growID || req.body.tankIDName || '').trim();
-      const password = req.body.password || req.body.tankIDPass || '';
-      if (!growID || !password) {
-        return res.status(400).json({ status: 'error', message: 'Eksik bilgi.' });
+    app.all('/player/growid/login/validate', (req, res) => {
+      const growId = (req.body.growId || req.body.growID || '').trim();
+      const password = req.body.password || '';
+      const _token = req.body._token || '';
+
+      this.log.info(`[GT-LOGIN] /validate growId=${growId} hasToken=${!!_token} hasPass=${!!password}`);
+
+      if (!growId || !password) {
+        return res.json({ status: 'error', message: 'Eksik bilgi (growId/password).' });
       }
-      let r = ctx.players.login(growID, password);
-      if (!r.ok && r.error === 'Oyuncu bulunamadi.') r = ctx.players.register(growID, password);
+
+      let r = ctx.players.login(growId, password);
+      if (!r.ok && r.error === 'Oyuncu bulunamadi.') {
+        r = ctx.players.register(growId, password);
+      }
       if (!r.ok) {
         return res.json({ status: 'error', message: r.error });
       }
-      const crypto = require('crypto');
-      const token = crypto.randomBytes(24).toString('hex');
-      this.loginTokens.set(token, { key: r.player.key, until: Date.now() + 5 * 60000 });
-      // ENet tarafinin token'i tanimasi icin paylasilan map'e de yaz
-      ctx.gtLoginTokens.set(token, { key: r.player.key, growID, until: Date.now() + 5 * 60000 });
-      // Bu growID'ye gelen herhangi bir login_request bu token'i kabul edebilir
-      ctx.gtLoginTokens.set(`growid:${growID.toLowerCase()}`, { key: r.player.key, growID, until: Date.now() + 5 * 60000 });
-      ctx.audit.record('gt.login', growID);
-      this.log.info(`[GT-LOGIN] WebView /validate basarili: ${growID} -> token ${token.slice(0,8)}...`);
-      res.json({ status: 'success', message: 'Account Validated.', token, url: '', accountType: 'growtopia' });
+
+      // ENet'in kabul edecegi token: base64(_token + growId + password + reg=0)
+      // GT istemcisi bu token'i alip ENet uzerinden geri yollar.
+      const tokenPayload = `_token|${_token}\ngrowId|${growId}\npassword|${password}\nreg|0`;
+      const token = Buffer.from(tokenPayload, 'utf8').toString('base64');
+
+      const until = Date.now() + 10 * 60000;
+      this.loginTokens.set(token, { key: r.player.key, until });
+      ctx.gtLoginTokens.set(token, { key: r.player.key, growID: growId, until });
+      ctx.gtLoginTokens.set(`growid:${growId.toLowerCase()}`, { key: r.player.key, growID: growId, until });
+      ctx.audit.record('gt.login', growId);
+      this.log.success(`[GT-LOGIN] dogrulama OK: ${growId}`);
+
+      res.json({
+        status: 'success',
+        message: 'Account Validated.',
+        token,
+        url: '',
+        accountType: 'growtopia'
+      });
     });
 
-    // GT itemsfile (kucuk stub - gercek items.dat icin /assets/items.dat yerlestirilebilir)
-    app.get('/growtopia/cache/*', (req, res, next) => next());
+    // Token tazeleme (GT istemcisi reconnect denerken kullanir)
+    app.all('/player/growid/checktoken', (req, res) => {
+      res.redirect(307, '/player/growid/validate/checktoken');
+    });
+    app.all('/player/growid/validate/checktoken', (req, res) => {
+      const refreshToken = req.body.refreshToken || '';
+      const clientData = req.body.clientData || '';
+      try {
+        let decoded = Buffer.from(refreshToken, 'base64').toString('utf8');
+        decoded = decoded.replace(/&reg=[01]/g, '');
+        const newClientB64 = Buffer.from(clientData, 'utf8').toString('base64');
+        decoded = decoded.replace(/_token\|[^\n]*/, `_token|${newClientB64}`);
+        const token = Buffer.from(decoded, 'utf8').toString('base64');
+        res.json({ status: 'success', message: 'Refresh Token.', token, url: '', accountType: 'growtopia' });
+      } catch (e) {
+        res.json({ status: 'error', message: 'Token decode hatasi.' });
+      }
+    });
+
+    // Geriye uyumluluk: eski /player/login/validate'i de yeni endpoint'e yonlendir
+    app.all('/player/login/validate', (req, res) => {
+      // GT istemcisi yeni protokolde /player/growid/login/validate kullanir
+      this.log.warn('[GT-LOGIN] Eski /player/login/validate cagrildi -> yeni endpoint\'e yonleniyor');
+      res.redirect(307, '/player/growid/login/validate');
+    });
 
     app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
     app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
