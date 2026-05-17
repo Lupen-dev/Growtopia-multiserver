@@ -29,6 +29,7 @@ const BossRaid = require('./activities/BossRaid');
 
 const registerAllCommands = require('./commands/registry');
 const GameServer = require('./network/GameServer');
+const ENetServer = require('./network/ENetServer');
 const WebServer = require('./web/WebServer');
 
 async function main() {
@@ -86,6 +87,7 @@ async function main() {
       if (player && player.conn) {
         try { player.conn.send({ type: 'kicked', reason }); player.conn.ws.close(); } catch {}
       }
+      if (ctx.enetServer) ctx.enetServer.kick(player, reason);
     },
     reloadConfig() {
       try {
@@ -98,6 +100,7 @@ async function main() {
       logger.info('Kapatma sirasi calisiyor...');
       events.stopAll(); activities.stopAll();
       if (ctx.gameServer) ctx.gameServer.stop();
+      if (ctx.enetServer) ctx.enetServer.stop();
       if (ctx.webServer) ctx.webServer.stop();
       db.stop();
       logger.success('Kapatildi.');
@@ -136,6 +139,17 @@ async function main() {
   ctx.gameServer.start();
   ctx.webServer.startAdminWs();
   ctx.webServer.routeUpgrades();
+
+  // ENet Growtopia sunucusu (gercek GT istemcisi icin)
+  if (config.network.gameEnetEnabled !== false) {
+    try {
+      ctx.enetServer = new ENetServer(ctx);
+      await ctx.enetServer.start(config.network.gamePort, config.network.gameHost);
+    } catch (e) {
+      logger.error('ENet sunucusu baslatilamadi: ' + e.message);
+      logger.warn('Sunucu yine de WebSocket istemcisi (/play) ile calismaya devam edecek.');
+    }
+  }
 
   // Etkinlik zamanlayicilari
   events.schedule();

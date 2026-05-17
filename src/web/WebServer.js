@@ -199,6 +199,23 @@ class WebServer {
       res.json({ ok });
     });
 
+    // GT istemcisinin baglandigi server_data endpoint'i (HTTP)
+    app.all('/growtopia/server_data.php', (req, res) => {
+      const cfg = ctx.config.network;
+      const reachableHost = cfg.gameHost === '0.0.0.0' ? '127.0.0.1' : cfg.gameHost;
+      const body = [
+        'server|' + reachableHost,
+        'port|' + cfg.gamePort,
+        'type|1',
+        'beta_server|' + reachableHost,
+        'beta_port|' + cfg.gamePort,
+        'beta_type|1',
+        'meta|growturk',
+        'RTENDMARKERBS1001'
+      ].join('\n');
+      res.set('Content-Type', 'text/plain').send(body);
+    });
+
     app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
     app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
     app.get('/play', (req, res) => res.sendFile(path.join(__dirname, 'public', 'play.html')));

@@ -10,8 +10,10 @@
   "network": {
     "gameHost": "0.0.0.0",
     "gamePort": 17091,
+    "gameEnetEnabled": true,
     "webHost": "0.0.0.0",
-    "webPort": 8080
+    "webPort": 8080,
+    "note": "gamePort=17091 ENet (resmi GT istemcisi). webPort=8080 panel + server_data.php"
   },
   "economy": {
     "startingGems": 500,
