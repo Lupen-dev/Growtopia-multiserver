@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 80" role="img" aria-label="İzyap İnşaat">
+  <defs>
+    <linearGradient id="iz-grad-l" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e7c674"/>
+      <stop offset="100%" stop-color="#b58a2a"/>
+    </linearGradient>
+  </defs>
+  <g>
+    <rect x="6" y="14" width="56" height="56" rx="6" fill="url(#iz-grad-l)"/>
+    <rect x="14" y="22" width="40" height="40" rx="3" fill="none" stroke="#0b1320" stroke-width="2.5"/>
+    <path d="M22 30 h24 M22 38 h24 M22 46 h24 M22 54 h24" stroke="#0b1320" stroke-width="2" opacity=".3"/>
+    <text x="34" y="52" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="24" fill="#0b1320">İZ</text>
+    <text x="78" y="44" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="28" fill="#ffffff" letter-spacing="2">İZYAP</text>
+    <text x="78" y="62" font-family="Helvetica, Arial, sans-serif" font-weight="500" font-size="11" fill="#e7c674" letter-spacing="6">İ N Ş A A T</text>
+  </g>
+</svg>
