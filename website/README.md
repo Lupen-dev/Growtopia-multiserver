@@ -1,4 +1,4 @@
-# Sarı Hafriyat — Kurumsal Web Sitesi
+# Sarı Ticaret — Kurumsal Web Sitesi
 
 Beton · Hafriyat · Malzeme Satışı yapan firma için modern, hızlı ve mobil uyumlu
 tek sayfalık (one-page) tanıtım sitesi. **ISM Beton yetkili bayii** vurgusuyla
@@ -66,4 +66,4 @@ python3 -m http.server 8000
 
 ---
 
-© Sarı Hafriyat — Site tasarımı **Altuncloud — Morina A.Ş.**
+© Sarı Ticaret — Site tasarımı **Altuncloud — Morina A.Ş.**

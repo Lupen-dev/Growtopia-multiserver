@@ -98,8 +98,8 @@ ul { list-style: none; }
   box-shadow: 0 8px 20px rgba(255,179,0,.4); flex: none;
 }
 .brand__text { display: flex; flex-direction: column; line-height: 1; font-family: "Sora"; }
-.brand__text strong { font-size: 1.25rem; letter-spacing: .02em; }
-.brand__text span { font-size: .72rem; letter-spacing: .32em; color: var(--gray); font-weight: 600; }
+.brand__text strong { font-size: 1.2rem; letter-spacing: .01em; white-space: nowrap; }
+.brand__text span { font-size: .64rem; letter-spacing: .2em; color: var(--gray); font-weight: 600; white-space: nowrap; }
 
 .nav { display: flex; align-items: center; gap: 6px; }
 .nav__link {
