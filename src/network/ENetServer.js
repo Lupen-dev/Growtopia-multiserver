@@ -2,6 +2,15 @@
 // Bu paket Growtopia'nin ozel CRC32 + range coder kombinasyonunu destekler.
 // useNewPacket + useNewServerPacket ayarlari modern GT istemcisinin protokol surumune uyar.
 const { Client, TextPacket, TankPacket, Variant } = require('growtopia.js');
+const World = require('./WorldSerializer');
+
+// GT tank paket tipleri (GrowServer TankTypes ile ayni)
+const TANK = {
+  STATE: 0, CALL_FUNCTION: 1, UPDATE_STATUS: 2, TILE_CHANGE_REQUEST: 3,
+  SEND_MAP_DATA: 4, SEND_TILE_UPDATE_DATA: 5, TILE_ACTIVATE_REQUEST: 7,
+  TILE_APPLY_DAMAGE: 8, SEND_INVENTORY_STATE: 9, ITEM_ACTIVATE_REQUEST: 10,
+  SEND_ITEM_DATABASE_DATA: 16, SET_CHARACTER_STATE: 20
+};
 
 class ENetServer {
   constructor(ctx) {
@@ -64,25 +73,65 @@ class ENetServer {
       this.sendRaw(netID, buf);
     } catch (e) { this.log.error('variant gondermede hata: ' + e.message); }
   }
+  // Variant'i belirli bir netID hedefiyle gonder (OnSetPos vb. icin gerekli)
+  sendVariantTo(netID, targetNetID, ...args) {
+    try {
+      const tp = Variant.from({ netID: targetNetID }, ...args).parse();
+      const buf = tp.parse ? tp.parse() : tp;
+      this.sendRaw(netID, buf);
+    } catch (e) { this.log.error('variant gondermede hata: ' + e.message); }
+  }
+  sendTank(netID, tank) {
+    try {
+      const buf = TankPacket.from(tank).parse();
+      if (buf) this.sendRaw(netID, buf);
+    } catch (e) { this.log.error('tank gondermede hata: ' + e.message); }
+  }
   sendConsole(netID, text) { this.sendVariant(netID, 'OnConsoleMessage', text); }
   sendDialog(netID, text) { this.sendVariant(netID, 'OnDialogRequest', text); }
   sendSetBux(netID, amount) { this.sendVariant(netID, 'OnSetBux', amount); }
   sendTalkBubble(netID, who, text, color = 0) { this.sendVariant(netID, 'OnTalkBubble', who, text, color); }
-  sendSpawnSelf(netID, player) {
-    const data =
-`spawn|avatar
-netID|${netID}
-userID|${player.id}
-colrect|0|0|20|30
-posXY|${Math.floor(player.x * 32)}|${Math.floor(player.y * 32)}
-name|\`w${player.name}
-country|tr
-invis|0
-mstate|0
-smstate|0
-type|local
-`;
-    this.sendVariant(netID, 'OnSpawn', data);
+
+  buildSpawnAvatar(netID, player, local) {
+    return 'spawn|avatar\n' +
+      `netID|${netID}\n` +
+      `userID|${player.id}\n` +
+      'colrect|0|0|20|30\n' +
+      `posXY|${Math.floor(player.x * 32)}|${Math.floor(player.y * 32)}\n` +
+      `name|\`w${player.name}\`\`\n` +
+      'country|tr\n' +
+      'invis|0\n' +
+      'mstate|0\n' +
+      'smstate|0\n' +
+      'onlineID|\n' +
+      (local ? 'type|local\n' : '');
+  }
+
+  // GT envanteri: u8 versiyon | u32 slot | u16 adet | [u16 id, u16 miktar]
+  sendInventory(netID, items) {
+    const buf = Buffer.alloc(7 + items.length * 4);
+    buf.writeUInt8(0x1, 0);
+    buf.writeUInt32LE(Math.max(items.length, 32), 1);
+    buf.writeUInt16LE(items.length, 5);
+    let o = 7;
+    for (const it of items) {
+      buf.writeUInt16LE(it.id, o);
+      buf.writeUInt16LE(it.amount, o + 2);
+      o += 4;
+    }
+    this.sendTank(netID, { type: TANK.SEND_INVENTORY_STATE, data: () => buf });
+  }
+
+  // items.dat'i istemciye gonder (refresh_item_data cevabi)
+  sendItemsDat(netID) {
+    const gi = this.ctx.gtItems;
+    if (!gi || !gi.content) {
+      this.sendConsole(netID, '`4Sunucuda items.dat yok.');
+      return;
+    }
+    this.sendConsole(netID, 'Esya verisi guncelleniyor, bir saniye...');
+    this.sendTank(netID, { type: TANK.SEND_ITEM_DATABASE_DATA, data: () => gi.content });
+    this.log.info(`>> netID=${netID} items.dat gonderildi (${gi.content.length} bayt)`);
   }
 
   // ---- Lifecycle ----
@@ -122,7 +171,7 @@ end_dialog|GROWID_LOGIN_VALIDATE|Iptal|Giris|`;
     const dur = s && s.connectedAt ? Math.round((Date.now() - s.connectedAt) / 1000) : '?';
     if (s && s.player) {
       this.ctx.chat.system(`* ${s.player.name} sunucudan ayrildi`, 'global');
-      this.ctx.worlds.leave(s.player);
+      this.leaveWorldGT(s);
       this.ctx.players.detachConnection(s.player);
     }
     this.peers.delete(netID);
@@ -204,11 +253,21 @@ end_dialog|GROWID_LOGIN_VALIDATE|Iptal|Giris|`;
       return;
     }
 
-    if (action === 'enter_game' || action === 'refresh_item_data') {
-      this.enterWorldFor(session, session.player.world || 'START');
+    if (action === 'refresh_item_data') {
+      this.sendItemsDat(session.netID);
       return;
     }
-    if (action === 'quit_to_exit' || action === 'quit') {
+    if (action === 'enter_game') {
+      this.sendWorldSelectMenu(session.netID);
+      return;
+    }
+    if (action === 'quit_to_exit') {
+      // Dunyadan cik -> dunya secim menusu
+      this.leaveWorldGT(session);
+      this.sendWorldSelectMenu(session.netID);
+      return;
+    }
+    if (action === 'quit') {
       try { this.client.host.getPeer(session.netID).disconnect(this.client.host, 0); } catch {}
       return;
     }
@@ -230,7 +289,16 @@ end_dialog|GROWID_LOGIN_VALIDATE|Iptal|Giris|`;
       }
       return;
     }
-    if (action === 'respawn') { this.enterWorldFor(session, session.player.world); return; }
+    if (action === 'respawn' || action === 'respawn_spike') {
+      const w = this.ctx.worlds.get(session.player.world);
+      if (w) {
+        World.ensureTiles(w);
+        session.player.x = w.spawn.x;
+        session.player.y = w.spawn.y;
+        this.sendVariantTo(session.netID, session.netID, 'OnSetPos', [w.spawn.x * 32, w.spawn.y * 32]);
+      }
+      return;
+    }
     this.log.debug('action', { action });
   }
 
@@ -238,20 +306,37 @@ end_dialog|GROWID_LOGIN_VALIDATE|Iptal|Giris|`;
     if (!session.player) return;
     if (buf.length < 60) return;
     const ptype = buf.readUInt8(4);
-    // Type 0 = PlayerState (movement)
-    if (ptype === 0) {
-      const x = buf.readFloatLE(32);
-      const y = buf.readFloatLE(36);
+
+    // Type 0 = PlayerState (hareket). x=offset 28, y=offset 32 (GT tank yerlesimi)
+    if (ptype === TANK.STATE) {
+      const x = buf.readFloatLE(28);
+      const y = buf.readFloatLE(32);
       if (Number.isFinite(x) && Number.isFinite(y)) {
         session.player.x = Math.max(0, x / 32);
         session.player.y = Math.max(0, y / 32);
       }
+      // netID alanini sunucu damgalar, diger oyunculara yayinlanir
+      buf.writeInt32LE(session.netID, 8);
       this.broadcastTankRaw(session, buf);
       return;
     }
-    // Type 3 = TileChangeRequest
-    if (ptype === 3) {
-      this.broadcastTankRaw(session, buf);
+
+    // Type 3 = TileChangeRequest (yumruk / blok yerlestirme)
+    if (ptype === TANK.TILE_CHANGE_REQUEST) {
+      const itemId = buf.readInt32LE(24);   // kullanilan esya (18 = yumruk)
+      const tx = buf.readInt32LE(48);
+      const ty = buf.readInt32LE(52);
+      const w = this.ctx.worlds.get(session.player.world);
+      if (!w) return;
+      const r = World.applyTileChange(w, tx, ty, itemId, this.ctx.gtItems);
+      if (!r.ok) return;
+      if (r.broken || r.placed) this.ctx.db.mark('worlds');
+      // Istek paketi sender netID'si ile herkese (gonderen dahil) geri yayinlanir
+      buf.writeInt32LE(session.netID, 8);
+      for (const s of this.peers.values()) {
+        if (!s.player || s.player.world !== session.player.world) continue;
+        this.sendRaw(s.netID, buf);
+      }
       return;
     }
   }
@@ -324,31 +409,84 @@ end_dialog|GROWID_LOGIN_VALIDATE|Iptal|Giris|`;
     });
     this.log.success(`giris: ${name} (netID ${session.netID})`);
 
-    // Klasik GT private server login accept sirasi:
-    // 1) Magic accept variant - client buradan sonra spawn paketi kabul eder
-    this.sendVariant(session.netID, 'OnSuperMainStartAcceptLogonHrdxs47254722215a', 0, 'ubistatic-a.akamaihd.net', '0098/41/01/refs/heads/master/cache/', 'cc.cz.madkite.freedom org.aqua.gg idv.aqua.bulldog com.cih.gamecih2 com.cih.gamecih com.cih.game_cih cn.maocai.gamekiller com.gmd.speedtime org.dax.attack com.x0.strai.frep com.x0.strai.free org.cheatengine.cegui org.sbtools.gamehack com.skgames.traffikrider org.sbtoods.gamehaca com.skype.ralder org.cheatengine.cegui.xx.multi1458919170111 com.prohiro.macro me.autotouch.autotouch com.cygery.repetitouch.free com.cygery.repetitouch.pro com.proziro.zacro com.slash.gamebuster', 'proto=200|choosemusic=audio/mp3/about_theme.mp3|active_holiday=0|wing_week_day=0|ubi_week_day=0|server_tick=24400370|clash_active=0|drop_lavacheck_faster=1|isPayingUser=1|usingStoreNavigation=1|enableInventoryTab=1|bigBackpack=1|');
-    this.log.info(`>> netID=${session.netID} OnSuperMainStartAcceptLogonHrdxs gonderildi`);
+    // Gercek GT login accept sirasi:
+    // 1) Magic accept variant - ilk parametre sunucunun items.dat proton hash'i.
+    //    Istemcinin lokal hash'i farkliysa "refresh_item_data" ister.
+    const itemsHash = (this.ctx.gtItems && this.ctx.gtItems.hash) || 0;
+    this.sendVariant(session.netID, 'OnSuperMainStartAcceptLogonHrdxs47254722215a', itemsHash, 'ubistatic-a.akamaihd.net', '0098/41/01/refs/heads/master/cache/', 'cc.cz.madkite.freedom org.aqua.gg idv.aqua.bulldog com.cih.gamecih2 com.cih.gamecih com.cih.game_cih cn.maocai.gamekiller com.gmd.speedtime org.dax.attack com.x0.strai.frep com.x0.strai.free org.cheatengine.cegui org.sbtools.gamehack com.skgames.traffikrider org.sbtoods.gamehaca com.skype.ralder org.cheatengine.cegui.xx.multi1458919170111 com.prohiro.macro me.autotouch.autotouch com.cygery.repetitouch.free com.cygery.repetitouch.pro com.proziro.zacro com.slash.gamebuster', 'proto=200|choosemusic=audio/mp3/about_theme.mp3|active_holiday=0|wing_week_day=0|ubi_week_day=0|server_tick=24400370|clash_active=0|drop_lavacheck_faster=1|isPayingUser=1|usingStoreNavigation=1|enableInventoryTab=1|bigBackpack=1|');
+    this.log.info(`>> netID=${session.netID} OnSuperMainStartAcceptLogonHrdxs gonderildi (items hash=${itemsHash})`);
 
     // 2) Bux gem sayisi
     this.sendSetBux(session.netID, res.player.gems);
-    // 3) Dunyaya gir (OnSpawn dahil)
-    this.enterWorldFor(session, res.player.world || 'START');
+    // 3) Istemci "enter_game" gonderince dunya secim menusu acilir.
+    //    Gondermeyen (eski/ozel) istemciler icin menuyu proaktif de yolla.
+    this.sendWorldSelectMenu(session.netID);
+  }
+
+  sendWorldSelectMenu(netID) {
+    const worlds = this.ctx.worlds.topVisited(8);
+    let menu = 'default|START\nadd_button|Showing: `wDunyalar``|_catselect_|0.6|3529161471|\n';
+    for (const w of worlds) {
+      menu += `add_floater|${w.name}|${w.players.length}|0.55|3529161471\n`;
+    }
+    this.sendVariant(netID, 'OnRequestWorldSelectMenu', menu);
+  }
+
+  // Oyuncuyu mevcut dunyasindan cikar, diger oyunculara OnRemove yayinla.
+  leaveWorldGT(session) {
+    if (!session.player || !session.player.world) return;
+    const worldName = session.player.world;
+    this.ctx.worlds.leave(session.player);
+    for (const s of this.peers.values()) {
+      if (s === session || !s.player || s.player.world !== worldName) continue;
+      this.sendVariant(s.netID, 'OnRemove', `netID|${session.netID}\n`);
+      this.sendConsole(s.netID, `\`5<\`w${session.player.name}\`5 dunyadan ayrildi>\`\``);
+    }
+    session.player.world = null;
   }
 
   enterWorldFor(session, worldName) {
-    const r = this.ctx.worlds.enter(session.player, worldName || 'START');
+    // Baska bir dunyadaysa once oradan cikar (OnRemove yayini dahil)
+    if (session.player.world) this.leaveWorldGT(session);
+    let r = this.ctx.worlds.enter(session.player, worldName || 'START');
+    // Dunya yoksa oyuncu icin olustur (GT davranisi: her isim gecerli dunya)
+    if (!r.ok && r.error === 'Dunya bulunamadi.') {
+      const c = this.ctx.worlds.create(worldName, session.player.name);
+      if (c.ok) r = this.ctx.worlds.enter(session.player, worldName);
+    }
     const w = (r && r.ok) ? r.world : this.ctx.worlds.get('START');
     if (!w) return;
-    this.sendDialog(session.netID,
-`set_default_color|\`o
-add_spacer|small|
-add_label_with_icon|big|\`wHosgeldin ${session.player.name}!|left|6
-add_label_with_icon|small|\`o${this.ctx.config.server.motd}|left|18
-add_textbox|Komutlar icin /help yaz.|left
-add_spacer|small|
-end_dialog|welcome||TAMAM|`);
-    this.sendConsole(session.netID, `\`6${w.name}\`\` dunyasina girdin. (${w.players.length} kisi)`);
-    this.sendSpawnSelf(session.netID, session.player);
+    World.ensureTiles(w);
+    session.player.x = w.spawn.x;
+    session.player.y = w.spawn.y;
+
+    // 1) Dunya binary verisi (SEND_MAP_DATA)
+    const mapData = World.serialize(w);
+    this.sendTank(session.netID, { type: TANK.SEND_MAP_DATA, state: 8, data: () => mapData });
+    this.log.info(`>> netID=${session.netID} dunya verisi: ${w.name} (${mapData.length} bayt)`);
+
+    // 2) Kendi avatarini spawn et (type|local)
+    this.sendVariant(session.netID, 'OnSpawn', this.buildSpawnAvatar(session.netID, session.player, true));
+
+    // 3) Dunyadaki diger oyunculari bu istemciye, bu istemciyi digerlerine spawn et
+    for (const s of this.peers.values()) {
+      if (s === session || !s.player || s.player.world !== w.name) continue;
+      this.sendVariant(session.netID, 'OnSpawn', this.buildSpawnAvatar(s.netID, s.player, false));
+      this.sendVariant(s.netID, 'OnSpawn', this.buildSpawnAvatar(session.netID, session.player, false));
+      this.sendConsole(s.netID, `\`5<\`w${session.player.name}\`5 dunyaya girdi>\`\``);
+    }
+
+    // 4) Envanter + hosgeldin
+    this.sendInventory(session.netID, [
+      { id: 18, amount: 1 },    // Yumruk
+      { id: 32, amount: 1 },    // Ingiliz anahtari
+      { id: 2, amount: 200 },   // Toprak
+      { id: 14, amount: 200 },  // Magara arkaplani
+      { id: 10, amount: 10 },   // Kapi
+      { id: 20, amount: 10 },   // Tabela
+      { id: 4, amount: 50 }     // Lav
+    ]);
+    this.sendConsole(session.netID, `\`oDunya \`w${w.name}\`o girildi. \`5${w.players.length}\`o kisi burada. Komutlar icin \`w/help\`o yaz.`);
   }
 
   // ---- Broadcasts ----

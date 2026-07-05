@@ -7,6 +7,10 @@ logs/*.log
 logs/*.gz
 data/runtime/
 data/backups/
+
+# Gercek GT istemcisinden alinan items.dat repoya konmaz (telif + boyut)
+assets/items.dat
+data/items.dat
 *.sqlite
 *.db
 
