@@ -147,6 +147,9 @@ async function main() {
   // ENet Growtopia sunucusu (gercek GT istemcisi icin)
   if (config.network.gameEnetEnabled !== false) {
     try {
+      // GT items.dat (assets/items.dat varsa yukle, yoksa minimal uret)
+      const GTItems = require('./network/GTItems');
+      ctx.gtItems = await new GTItems(ctx).load();
       ctx.enetServer = new ENetServer(ctx);
       await ctx.enetServer.start(config.network.gamePort, config.network.gameHost);
     } catch (e) {

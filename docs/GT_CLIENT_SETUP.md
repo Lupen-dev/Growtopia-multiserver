@@ -128,32 +128,61 @@ HTTPS (fallback): https://0.0.0.0:8443/player/login/dashboard
 9. Sunucu kullaniciyi `players.json`'a kaydeder ve `OnSetBux`, `OnSpawn`
    vb. variant paketlerini gonderir.
 
-## 5. Bilinen Sinirlamalar
+## 5. items.dat (Faz 1 ile eklendi)
+
+Sunucu baslarken items.dat su sirayla aranir:
+
+1. `config/default.json` -> `network.itemsDatPath` (ozel yol)
+2. `assets/items.dat`
+3. `data/items.dat`
+
+Bulunamazsa **minimal bir items.dat uretilir** (cekirdek esyalar: toprak,
+bedrock, ana kapi, kapi, tabela, lav, magara arkaplani, yumruk, anahtar).
+Bu uretilen dosya sunucu akisini calistirir ama gercek istemcinin 14k+
+esyasini icermez. **Gercek GT istemcisi ile tam uyumluluk icin** guncel
+istemciden alinan `items.dat` dosyasini `assets/items.dat` olarak koy:
+
+```bash
+mkdir -p assets
+cp /yol/gt/cache/items.dat assets/items.dat
+```
+
+Sunucu dosyanin proton hash'ini hesaplar ve login kabulunde
+(`OnSuperMainStartAcceptLogonHrdxs...` ilk parametresi) istemciye bildirir.
+Istemcinin lokal hash'i farkliysa `refresh_item_data` ister; sunucu da
+items.dat'i `SEND_ITEM_DATABASE_DATA` (tank type 16) ile gonderir.
+
+## 6. Bilinen Sinirlamalar
 
 Bu sunucu kapsami:
 - [OK] ENet handshake + CRC32 + range coder (growtopia.js)
 - [OK] HTTPS server_data.php + login dashboard + validate endpoint
 - [OK] REQUEST_LOGIN_INFO + login parsing
-- [OK] OnSetBux, OnDialogRequest, OnConsoleMessage, OnTalkBubble, OnSpawn
-- [OK] Hareket (TankPacket type 0), blok yerleme/kirma (type 3) yansitma
+- [OK] **items.dat yukleme/uretme + proton hash + refresh_item_data gonderimi** (Faz 1)
+- [OK] **Dunya binary serilestirme (SEND_MAP_DATA, world-pack v20)** (Faz 1)
+- [OK] **Dunya secim menusu (OnRequestWorldSelectMenu), join_request, quit_to_exit** (Faz 1)
+- [OK] **OnSpawn local/remote, OnRemove, envanter (SEND_INVENTORY_STATE)** (Faz 1)
+- [OK] **Yumruk/blok yerlestirme sunucu tarafinda dunya verisine islenir** (Faz 1)
+- [OK] OnSetBux, OnDialogRequest, OnConsoleMessage, OnTalkBubble
+- [OK] Hareket (TankPacket type 0) netID damgali yayin
 - [OK] Mevcut 116 komut + 10 aktivite + ekonomi entegrasyonu
 
-Henuz eksik (gercek tam istemci uyumlulugu icin uzerine eklenmeli):
-- **items.dat sifreli katalog gonderimi** (gercek GT 14k+ esya tanimi var).
-  growtopia.js'in `ItemsDat` utility'si var, ama uretilmek icin gerek var.
-  `assets/items.dat` koyup yukleme kodu eklenebilir.
-- **World data binary kodlama** (gzip-compressed block array, OnSendMapData).
-- **Items hash dogrulamasi** - GT istemcisi server'in items.dat hash'ini
-  bilmek ister; aksi takdirde "Connection lost" verir.
-- Tum gelisen opcode'lar (punch, trade, dropped, vending, vb.).
+Henuz eksik (sonraki fazlar):
+- Dropped item'lar (yere esya dusurme/toplama), agac dikme/hasat.
+- Kilit (lock) mekanigi, dunya sahipligi tile bazinda.
+- Trade, vending, clothing (giysi giyme goruntusu).
+- Tile activate (kapi ile dunyalar arasi gecis), checkpoint.
+- World-pack yerlesimi GrowServer v20 formatini izler; farkli istemci
+  surumlerinde alan farklari cikarsa `src/network/WorldSerializer.js`
+  icinden tek noktadan ayarlanabilir.
 
-## 6. Tani Araci
+## 7. Tani Araci
 
 Sunuda **`./scripts/doctor.sh`** veya **`npm run doctor`** komutu hepsini
 tek seferde kontrol eder: hosts dosyasi, DNS, sertifika, SAN, Keychain
 guveni (macOS), 443 ve 17091 portlari, sunucu sagligi.
 
-## 7. Sorun Giderme
+## 8. Sorun Giderme
 
 **"check your internet and make sure you not using VPN"** (en sik):
 - GT istemcisi `server_data.php`'ye ulasamiyor demek.
