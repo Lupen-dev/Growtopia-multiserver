@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Tekel Stok</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+  :root {
+    --bg: #f2f2f7; --card: #fff; --text: #1c1c1e; --muted: #8e8e93;
+    --accent: #007aff; --green: #34c759; --red: #ff3b30; --orange: #ff9500;
+    --border: #e5e5ea;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         background: var(--bg); color: var(--text); padding-bottom: 80px; }
+  header { position: sticky; top: 0; z-index: 10; background: var(--card);
+           padding: max(env(safe-area-inset-top), 10px) 16px 10px; border-bottom: 1px solid var(--border);
+           display: flex; justify-content: space-between; align-items: center; }
+  header h1 { font-size: 20px; }
+  .page { display: none; padding: 12px; }
+  .page.active { display: block; }
+  .card { background: var(--card); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .big { font-size: 22px; font-weight: 700; }
+  button { border: none; border-radius: 10px; font-size: 16px; padding: 12px 16px;
+           background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; }
+  button.secondary { background: #e9e9ec; color: var(--text); }
+  button.danger { background: var(--red); }
+  button.small { padding: 6px 12px; font-size: 14px; border-radius: 8px; }
+  button:disabled { opacity: .45; }
+  .wide { width: 100%; }
+  input, select { width: 100%; font-size: 16px; padding: 11px 12px; border: 1px solid var(--border);
+          border-radius: 10px; background: var(--card); color: var(--text); margin-top: 4px; }
+  label { font-size: 13px; color: var(--muted); display: block; margin-top: 10px; }
+  nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card);
+        border-top: 1px solid var(--border); display: flex;
+        padding-bottom: env(safe-area-inset-bottom); z-index: 10; }
+  nav button { flex: 1; background: none; color: var(--muted); font-size: 11px; padding: 8px 0 6px;
+               border-radius: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  nav button.active { color: var(--accent); }
+  nav button .icon { font-size: 22px; }
+  .badge { background: var(--red); color: #fff; border-radius: 10px; font-size: 11px;
+           padding: 1px 6px; margin-left: 4px; }
+  .list-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .list-item:last-child { border-bottom: none; }
+  .stock-ok { color: var(--muted); } .stock-low { color: var(--orange); font-weight: 600; }
+  .stock-out { color: var(--red); font-weight: 700; }
+  .qty-btns { display: flex; align-items: center; gap: 8px; }
+  .qty-btns button { width: 34px; height: 34px; padding: 0; font-size: 20px; border-radius: 17px;
+                     background: #e9e9ec; color: var(--text); }
+  .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 50;
+           align-items: flex-end; }
+  .modal.open { display: flex; }
+  .modal-content { background: var(--bg); width: 100%; max-height: 92vh; overflow-y: auto;
+                   border-radius: 16px 16px 0 0; padding: 16px 16px calc(env(safe-area-inset-bottom) + 16px); }
+  .modal-content h2 { font-size: 18px; margin-bottom: 8px; }
+  #reader { width: 100%; border-radius: 12px; overflow: hidden; background: #000; min-height: 220px; }
+  .toast { position: fixed; top: calc(env(safe-area-inset-top) + 56px); left: 50%; transform: translateX(-50%);
+           background: var(--green); color: #fff; padding: 10px 18px; border-radius: 22px;
+           font-weight: 600; z-index: 100; box-shadow: 0 4px 14px rgba(0,0,0,.2);
+           opacity: 0; transition: opacity .25s; pointer-events: none; max-width: 90vw; text-align:center; }
+  .toast.error { background: var(--red); }
+  .toast.show { opacity: 1; }
+  .checkout { position: fixed; bottom: calc(52px + env(safe-area-inset-bottom)); left: 0; right: 0;
+              background: var(--card); border-top: 1px solid var(--border); padding: 10px 16px; z-index: 9; }
+  .seg { display: flex; background: #e9e9ec; border-radius: 10px; padding: 2px; margin-bottom: 8px; }
+  .seg button { flex: 1; background: none; color: var(--text); font-size: 14px; padding: 8px; }
+  .seg button.active { background: var(--card); box-shadow: 0 1px 3px rgba(0,0,0,.12); border-radius: 8px; }
+  .bar { display: flex; gap: 8px; margin-bottom: 10px; }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .stat { background: var(--card); border-radius: 12px; padding: 12px; text-align: center; }
+  .stat .v { font-size: 17px; font-weight: 700; margin-top: 2px; }
+  .hbar { background: var(--accent); height: 18px; border-radius: 4px; min-width: 4px; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #000; --card: #1c1c1e; --text: #fff; --border: #2c2c2e; }
+    button.secondary, .qty-btns button, .seg { background: #2c2c2e; color: var(--text); }
+    .seg button.active { background: #48484a; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="pageTitle">Satış</h1>
+  <span class="muted" id="headerInfo"></span>
+</header>
+
+<!-- SATIŞ -->
+<div class="page active" id="page-sale">
+  <button class="wide" onclick="openScanner('sale')">📷 &nbsp;Barkod Okut</button>
+  <div class="bar" style="margin-top:10px">
+    <input id="saleManualCode" placeholder="veya barkodu elle yazın" inputmode="numeric" style="margin:0">
+    <button class="secondary" onclick="manualSaleCode()">Ekle</button>
+  </div>
+  <div class="card" id="cartBox">
+    <div class="muted" id="cartEmpty">Sepet boş — ürün barkodu okutun.</div>
+    <div id="cartList"></div>
+  </div>
+  <div style="height:120px"></div>
+  <div class="checkout" id="checkoutBar" style="display:none">
+    <div class="seg">
+      <button id="payNakit" class="active" onclick="setPayment('Nakit')">💵 Nakit</button>
+      <button id="payKart" onclick="setPayment('Kart')">💳 Kart</button>
+    </div>
+    <button class="wide" style="background:var(--green)" onclick="completeSale()">
+      Satışı Tamamla &nbsp;•&nbsp; <span id="cartTotal">₺0</span>
+    </button>
+  </div>
+</div>
+
+<!-- ÜRÜNLER -->
+<div class="page" id="page-products">
+  <div class="bar">
+    <input id="productSearch" placeholder="Ürün adı veya barkod ara" oninput="renderProducts()" style="margin:0">
+    <button class="secondary" onclick="toggleLowStock()" id="lowStockBtn">⚠️</button>
+  </div>
+  <div class="bar">
+    <button class="wide" onclick="openScanner('newProduct')">📷 Barkodla Ekle</button>
+    <button class="wide secondary" onclick="openProductForm('')">+ Elle Ekle</button>
+  </div>
+  <div class="card"><div id="productList"></div></div>
+</div>
+
+<!-- RAPORLAR -->
+<div class="page" id="page-reports">
+  <div class="seg" id="periodSeg">
+    <button class="active" onclick="setPeriod('today', this)">Bugün</button>
+    <button onclick="setPeriod('week', this)">Bu Hafta</button>
+    <button onclick="setPeriod('month', this)">Bu Ay</button>
+  </div>
+  <div class="stat-grid">
+    <div class="stat"><div class="muted">Satış</div><div class="v" id="statCount">0</div></div>
+    <div class="stat"><div class="muted">Ciro</div><div class="v" id="statRevenue">₺0</div></div>
+    <div class="stat"><div class="muted">Kâr</div><div class="v" id="statProfit" style="color:var(--green)">₺0</div></div>
+  </div>
+  <div class="card"><b>Çok Satanlar</b><div id="topProducts" class="muted" style="margin-top:8px">—</div></div>
+  <div class="card"><b>Kritik Stok</b><div id="lowStockReport" class="muted" style="margin-top:8px">—</div></div>
+  <div class="card"><b>Satış Geçmişi</b><div id="salesHistory" class="muted" style="margin-top:8px">—</div></div>
+</div>
+
+<nav>
+  <button class="active" id="tab-sale" onclick="showPage('sale')"><span class="icon">🛒</span>Satış</button>
+  <button id="tab-products" onclick="showPage('products')"><span class="icon">📦</span>Ürünler<span class="badge" id="lowBadge" style="display:none"></span></button>
+  <button id="tab-reports" onclick="showPage('reports')"><span class="icon">📊</span>Raporlar</button>
+</nav>
+
+<!-- Barkod tarayıcı -->
+<div class="modal" id="scannerModal">
+  <div class="modal-content">
+    <div class="row" style="margin-bottom:10px"><h2>Barkod Okut</h2>
+      <button class="secondary small" onclick="closeScanner()">Kapat</button></div>
+    <div id="reader"></div>
+    <p class="muted" style="margin-top:8px">Barkodu kameranın ortasına getirin. Kamera izni istenirse "İzin Ver"e dokunun.</p>
+  </div>
+</div>
+
+<!-- Ürün formu -->
+<div class="modal" id="productModal">
+  <div class="modal-content">
+    <div class="row"><h2 id="productFormTitle">Yeni Ürün</h2>
+      <button class="secondary small" onclick="closeModal('productModal')">Kapat</button></div>
+    <label>Barkod</label><input id="f_barcode" inputmode="numeric">
+    <label>Ürün adı</label><input id="f_name" placeholder="ör. Cola 330ml">
+    <label>Kategori</label>
+    <select id="f_category">
+      <option>Genel</option><option>Sigara</option><option>İçecek</option>
+      <option>Alkollü İçecek</option><option>Atıştırmalık</option><option>Şekerleme</option>
+      <option>Dondurma</option><option>Kağıt/Çakmak</option><option>Diğer</option>
+    </select>
+    <label>Alış fiyatı (₺)</label><input id="f_purchase" inputmode="decimal" placeholder="0">
+    <label>Satış fiyatı (₺)</label><input id="f_sale" inputmode="decimal" placeholder="0">
+    <label>Mevcut stok</label><input id="f_stock" inputmode="numeric" placeholder="0">
+    <label>Kritik stok uyarı seviyesi</label><input id="f_critical" inputmode="numeric" value="5">
+    <button class="wide" style="margin-top:14px" onclick="saveProduct()">Kaydet</button>
+  </div>
+</div>
+
+<!-- Ürün detayı -->
+<div class="modal" id="detailModal">
+  <div class="modal-content" id="detailContent"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const TL = v => '₺' + Number(v || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+let products = [], cart = [], payment = 'Nakit', period = 'today', lowStockOnly = false;
+let scanner = null, scanMode = 'sale', lastScan = { code: '', at: 0 };
+
+async function api(url, options) {
+  const res = await fetch(url, options ? {
+    headers: { 'Content-Type': 'application/json' }, ...options,
+    body: options.body ? JSON.stringify(options.body) : undefined
+  } : undefined);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'İşlem başarısız');
+  return data;
+}
+
+function toast(msg, isError) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (isError ? ' error' : '');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.className = 'toast', 2200);
+}
+
+// ---- Sayfalar ----
+const titles = { sale: 'Satış', products: 'Ürünler', reports: 'Raporlar' };
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  document.getElementById('pageTitle').textContent = titles[name];
+  if (name === 'reports') renderReports();
+  if (name === 'products') renderProducts();
+}
+
+// ---- Tarayıcı ----
+function openScanner(mode) {
+  scanMode = mode;
+  document.getElementById('scannerModal').classList.add('open');
+  const config = { fps: 10, qrbox: { width: 260, height: 140 },
+    formatsToSupport: [
+      Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8,
+      Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.UPC_E,
+      Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39,
+      Html5QrcodeSupportedFormats.QR_CODE ] };
+  scanner = new Html5Qrcode('reader');
+  scanner.start({ facingMode: 'environment' }, config, onScan,
+    () => {}).catch(err => {
+      toast('Kamera açılamadı: ' + err, true);
+      closeScanner();
+    });
+}
+
+function closeScanner() {
+  document.getElementById('scannerModal').classList.remove('open');
+  if (scanner) { scanner.stop().then(() => scanner.clear()).catch(() => {}); scanner = null; }
+}
+
+function onScan(code) {
+  const now = Date.now();
+  if (code === lastScan.code && now - lastScan.at < 1800) return;
+  lastScan = { code, at: now };
+  if (navigator.vibrate) navigator.vibrate(80);
+  if (scanMode === 'sale') handleSaleCode(code);
+  else { closeScanner(); openProductForm(code); }
+}
+
+// ---- Satış ----
+function handleSaleCode(code) {
+  const product = products.find(p => p.barcode === code);
+  if (!product) { closeScanner(); openProductForm(code, true); return; }
+  addToCart(product);
+}
+
+function manualSaleCode() {
+  const input = document.getElementById('saleManualCode');
+  const code = input.value.trim();
+  if (!code) return;
+  input.value = '';
+  handleSaleCode(code);
+}
+
+function addToCart(product) {
+  const line = cart.find(l => l.barcode === product.barcode);
+  const inCart = line ? line.quantity : 0;
+  if (inCart + 1 > product.stockQuantity) {
+    toast(product.name + ' — stok yetersiz (kalan: ' + product.stockQuantity + ')', true);
+  }
+  if (line) line.quantity++;
+  else cart.push({ barcode: product.barcode, quantity: 1 });
+  toast(product.name + ' sepete eklendi');
+  renderCart();
+}
+
+function changeQty(barcode, delta) {
+  const line = cart.find(l => l.barcode === barcode);
+  if (!line) return;
+  line.quantity += delta;
+  if (line.quantity <= 0) cart = cart.filter(l => l !== line);
+  renderCart();
+}
+
+function renderCart() {
+  const listEl = document.getElementById('cartList');
+  const total = cart.reduce((sum, l) => {
+    const p = products.find(p => p.barcode === l.barcode);
+    return sum + (p ? p.salePrice * l.quantity : 0);
+  }, 0);
+  document.getElementById('cartEmpty').style.display = cart.length ? 'none' : 'block';
+  document.getElementById('checkoutBar').style.display = cart.length ? 'block' : 'none';
+  document.getElementById('cartTotal').textContent = TL(total);
+  listEl.innerHTML = cart.map(l => {
+    const p = products.find(p => p.barcode === l.barcode);
+    if (!p) return '';
+    return `<div class="list-item row">
+      <div><b>${esc(p.name)}</b><div class="muted">${TL(p.salePrice)} x ${l.quantity} = ${TL(p.salePrice * l.quantity)}</div></div>
+      <div class="qty-btns">
+        <button onclick="changeQty('${p.barcode}',-1)">−</button>
+        <b>${l.quantity}</b>
+        <button onclick="changeQty('${p.barcode}',1)">+</button>
+      </div></div>`;
+  }).join('');
+}
+
+function setPayment(method) {
+  payment = method;
+  document.getElementById('payNakit').classList.toggle('active', method === 'Nakit');
+  document.getElementById('payKart').classList.toggle('active', method === 'Kart');
+}
+
+async function completeSale() {
+  if (!cart.length) return;
+  try {
+    const sale = await api('/api/sales', { method: 'POST', body: { items: cart, paymentMethod: payment } });
+    cart = [];
+    renderCart();
+    closeScanner();
+    await loadProducts();
+    toast('✅ Satış tamamlandı: ' + TL(sale.totalAmount));
+  } catch (e) { toast(e.message, true); }
+}
+
+// ---- Ürünler ----
+async function loadProducts() {
+  products = await api('/api/products');
+  const low = products.filter(p => p.stockQuantity <= p.criticalStockLevel).length;
+  const badge = document.getElementById('lowBadge');
+  badge.style.display = low ? 'inline' : 'none';
+  badge.textContent = low;
+  document.getElementById('headerInfo').textContent = products.length + ' ürün';
+  renderProducts();
+  renderCart();
+}
+
+function toggleLowStock() {
+  lowStockOnly = !lowStockOnly;
+  document.getElementById('lowStockBtn').style.background = lowStockOnly ? 'var(--orange)' : '';
+  renderProducts();
+}
+
+function stockClass(p) {
+  return p.stockQuantity <= 0 ? 'stock-out' : p.stockQuantity <= p.criticalStockLevel ? 'stock-low' : 'stock-ok';
+}
+
+function renderProducts() {
+  const query = (document.getElementById('productSearch').value || '').toLocaleLowerCase('tr');
+  const list = products
+    .filter(p => !lowStockOnly || p.stockQuantity <= p.criticalStockLevel)
+    .filter(p => !query || p.name.toLocaleLowerCase('tr').includes(query) || p.barcode.includes(query))
+    .sort((a, b) => a.name.localeCompare(b.name, 'tr'));
+  document.getElementById('productList').innerHTML = list.length ? list.map(p => `
+    <div class="list-item row" onclick="openDetail('${p.barcode}')">
+      <div><b>${esc(p.name)}</b><div class="muted">${p.barcode} • ${esc(p.category)}</div></div>
+      <div style="text-align:right"><b>${TL(p.salePrice)}</b>
+      <div class="${stockClass(p)}">Stok: ${p.stockQuantity}</div></div>
+    </div>`).join('')
+    : '<div class="muted">Ürün bulunamadı. Barkod okutarak veya elle ekleyebilirsiniz.</div>';
+}
+
+let editingBarcode = null;
+function openProductForm(barcode, fromSale) {
+  editingBarcode = null;
+  document.getElementById('productFormTitle').textContent = barcode ? 'Barkodu Tanımla' : 'Yeni Ürün';
+  document.getElementById('f_barcode').value = barcode || '';
+  ['f_name', 'f_purchase', 'f_sale', 'f_stock'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f_critical').value = 5;
+  document.getElementById('productModal').classList.add('open');
+  if (fromSale) toast('Bu barkod kayıtlı değil — ürünü tanımlayın', true);
+}
+
+async function saveProduct() {
+  const body = {
+    barcode: document.getElementById('f_barcode').value.trim(),
+    name: document.getElementById('f_name').value.trim(),
+    category: document.getElementById('f_category').value,
+    purchasePrice: parseFloat((document.getElementById('f_purchase').value || '0').replace(',', '.')),
+    salePrice: parseFloat((document.getElementById('f_sale').value || '0').replace(',', '.')),
+    stockQuantity: parseInt(document.getElementById('f_stock').value) || 0,
+    criticalStockLevel: parseInt(document.getElementById('f_critical').value) || 0,
+  };
+  if (!body.barcode || !body.name) { toast('Barkod ve ürün adı zorunlu', true); return; }
+  try {
+    await api('/api/products', { method: 'POST', body });
+    closeModal('productModal');
+    await loadProducts();
+    toast('✅ ' + body.name + ' kaydedildi');
+  } catch (e) { toast(e.message, true); }
+}
+
+function openDetail(barcode) {
+  const p = products.find(p => p.barcode === barcode);
+  if (!p) return;
+  editingBarcode = barcode;
+  document.getElementById('detailContent').innerHTML = `
+    <div class="row"><h2>${esc(p.name)}</h2>
+      <button class="secondary small" onclick="closeModal('detailModal')">Kapat</button></div>
+    <p class="muted">${p.barcode} • ${esc(p.category)}</p>
+    <label>Ürün adı</label><input id="d_name" value="${esc(p.name)}">
+    <label>Alış fiyatı (₺)</label><input id="d_purchase" inputmode="decimal" value="${p.purchasePrice}">
+    <label>Satış fiyatı (₺)</label><input id="d_sale" inputmode="decimal" value="${p.salePrice}">
+    <label>Kritik stok seviyesi</label><input id="d_critical" inputmode="numeric" value="${p.criticalStockLevel}">
+    <button class="wide" style="margin-top:12px" onclick="updateProduct()">Bilgileri Kaydet</button>
+    <div class="card" style="margin-top:14px">
+      <div class="row"><b>Stok: <span class="${stockClass(p)}">${p.stockQuantity}</span></b></div>
+      <label>İşlem</label>
+      <select id="d_movetype"><option value="Alış">Stok Girişi (Alış)</option>
+        <option value="Düzeltme">Düzeltme (Çıkış)</option><option value="Fire/Zayi">Fire/Zayi</option></select>
+      <label>Miktar</label><input id="d_moveqty" inputmode="numeric" value="1">
+      <button class="wide secondary" style="margin-top:10px" onclick="applyStock()">Uygula</button>
+    </div>
+    <div class="card" style="margin-top:8px"><b>Son Hareketler</b>
+      ${(p.movements || []).slice(0, 15).map(m => `
+        <div class="list-item row"><div>${esc(m.type)}<div class="muted">${new Date(m.date).toLocaleString('tr-TR')}</div></div>
+        <b style="color:${m.delta > 0 ? 'var(--green)' : 'var(--red)'}">${m.delta > 0 ? '+' : ''}${m.delta}</b></div>`).join('') || '<div class="muted" style="margin-top:6px">Henüz hareket yok</div>'}
+    </div>
+    <button class="wide danger" style="margin-top:10px" onclick="deleteProduct()">Ürünü Sil</button>`;
+  document.getElementById('detailModal').classList.add('open');
+}
+
+async function updateProduct() {
+  try {
+    await api('/api/products/' + editingBarcode, { method: 'PUT', body: {
+      name: document.getElementById('d_name').value,
+      purchasePrice: parseFloat((document.getElementById('d_purchase').value || '0').replace(',', '.')),
+      salePrice: parseFloat((document.getElementById('d_sale').value || '0').replace(',', '.')),
+      criticalStockLevel: parseInt(document.getElementById('d_critical').value) || 0,
+    }});
+    closeModal('detailModal');
+    await loadProducts();
+    toast('✅ Güncellendi');
+  } catch (e) { toast(e.message, true); }
+}
+
+async function applyStock() {
+  const type = document.getElementById('d_movetype').value;
+  const qty = Math.abs(parseInt(document.getElementById('d_moveqty').value) || 0);
+  if (!qty) return;
+  try {
+    await api('/api/products/' + editingBarcode + '/stock', { method: 'POST',
+      body: { delta: type === 'Alış' ? qty : -qty, type } });
+    await loadProducts();
+    openDetail(editingBarcode);
+    toast('✅ Stok güncellendi');
+  } catch (e) { toast(e.message, true); }
+}
+
+async function deleteProduct() {
+  if (!confirm('Bu ürün silinsin mi?')) return;
+  try {
+    await api('/api/products/' + editingBarcode, { method: 'DELETE' });
+    closeModal('detailModal');
+    await loadProducts();
+    toast('Ürün silindi');
+  } catch (e) { toast(e.message, true); }
+}
+
+// ---- Raporlar ----
+function setPeriod(p, btn) {
+  period = p;
+  document.querySelectorAll('#periodSeg button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderReports();
+}
+
+function periodStart() {
+  const now = new Date();
+  if (period === 'today') return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (period === 'week') {
+    const day = (now.getDay() + 6) % 7; // Pazartesi başlangıç
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day);
+    return start;
+  }
+  return new Date(now.getFullYear(), now.getMonth(), 1);
+}
+
+async function renderReports() {
+  const sales = await api('/api/sales?since=' + periodStart().toISOString());
+  const revenue = sales.reduce((s, x) => s + x.totalAmount, 0);
+  const profit = sales.reduce((s, x) => s + x.totalProfit, 0);
+  document.getElementById('statCount').textContent = sales.length;
+  document.getElementById('statRevenue').textContent = TL(revenue);
+  document.getElementById('statProfit').textContent = TL(profit);
+
+  const counts = {};
+  sales.forEach(s => s.items.forEach(i => counts[i.productName] = (counts[i.productName] || 0) + i.quantity));
+  const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const max = top.length ? top[0][1] : 1;
+  document.getElementById('topProducts').innerHTML = top.length ? top.map(([name, qty]) => `
+    <div class="list-item"><div class="row"><span>${esc(name)}</span><b>${qty}</b></div>
+    <div class="hbar" style="width:${Math.round(qty / max * 100)}%"></div></div>`).join('') : 'Bu dönemde satış yok';
+
+  const low = products.filter(p => p.stockQuantity <= p.criticalStockLevel)
+    .sort((a, b) => a.stockQuantity - b.stockQuantity).slice(0, 10);
+  document.getElementById('lowStockReport').innerHTML = low.length ? low.map(p => `
+    <div class="list-item row"><span>${esc(p.name)}</span>
+    <b class="${stockClass(p)}">Stok: ${p.stockQuantity}</b></div>`).join('') : 'Kritik stokta ürün yok 👍';
+
+  document.getElementById('salesHistory').innerHTML = sales.length ? sales.slice(0, 30).map(s => `
+    <div class="list-item row">
+      <div>${new Date(s.date).toLocaleString('tr-TR')}<div class="muted">${s.items.reduce((a, i) => a + i.quantity, 0)} ürün • ${s.paymentMethod}</div></div>
+      <b>${TL(s.totalAmount)}</b></div>`).join('') : 'Bu dönemde satış yok';
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+loadProducts().catch(e => toast('Sunucuya bağlanılamadı', true));
+</script>
+</body>
+</html>
