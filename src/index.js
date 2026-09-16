@@ -31,6 +31,7 @@ const registerAllCommands = require('./commands/registry');
 const GameServer = require('./network/GameServer');
 const ENetServer = require('./network/ENetServer');
 const WebServer = require('./web/WebServer');
+const { Jarvis } = require('./jarvis');
 
 async function main() {
   const ROOT = path.resolve(__dirname, '..');
@@ -102,6 +103,7 @@ async function main() {
       if (ctx.gameServer) ctx.gameServer.stop();
       if (ctx.enetServer) ctx.enetServer.stop();
       if (ctx.webServer) ctx.webServer.stop();
+      if (ctx.jarvis) ctx.jarvis.stop();
       db.stop();
       logger.success('Kapatildi.');
       process.exit(restart ? 2 : 0);
@@ -143,6 +145,14 @@ async function main() {
   ctx.webServer.startAdminWs();
   ctx.webServer.routeUpgrades();
   await ctx.webServer.startHttps();
+
+  // Jarvis sesli ajan (WhatsApp/telefon ile sabah raporu) - .env ile acilir, kapaliysa hicbir sey yapmaz
+  try {
+    ctx.jarvis = new Jarvis(ctx);
+    ctx.jarvis.start();
+  } catch (e) {
+    logger.error('Jarvis baslatilamadi: ' + e.message);
+  }
 
   // ENet Growtopia sunucusu (gercek GT istemcisi icin)
   if (config.network.gameEnetEnabled !== false) {

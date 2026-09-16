@@ -76,6 +76,22 @@ Konsol acik kalir — `help` yazarak komutlari gor.
 - **Yonetici Hesaplari** (sadece owner): Helper/Mod/Admin/Owner ekle-cikar
 - **Hesap**: Sifre degistir
 
+## Jarvis: Sabah Seni Arayan Ajan
+
+Her sabah 06:00'da telefonunu caldirip gece raporunu okuyan, sorularina sesli/yazili cevap veren
+yapay zeka ajani. Claude ile calisir; kapaliyken sunucuya hicbir etkisi yoktur. Iki kanal:
+
+- **Telegram (bedava, basit, onerilen)**: @BotFather'dan bot + istege bagli CallMeBot ile gercek cinlama,
+  Edge TTS sesli mesaj, Groq Whisper ile sesli soru. Sunucuyu disari acmak gerekmez. **docs/JARVIS_TELEGRAM.md**
+- **WhatsApp / telefon (Twilio)**: videodaki gibi iki yonlu canli sesli arama. Meta isletme dogrulamasi ve
+  yurt disi numara sarti var. **docs/JARVIS_WHATSAPP.md**
+
+```bash
+cp .env.example .env   # JARVIS_ENABLED=1, TELEGRAM_BOT_TOKEN, ANTHROPIC_API_KEY
+./start.sh
+# konsol: jarvis durum | jarvis ara | jarvis rapor | jarvis sohbet <metin>
+```
+
 ## Manuel Adim
 
 Native bagimlilik yok, sadece Node 18+ yeterli:
@@ -97,7 +113,7 @@ git clone <repo> && cd Growtopia-multiserver
 ```
 Growtopia-multiserver/
   start.sh              # Tek komutla baslatma
-  package.json          # Sadece express + ws
+  package.json          # express + ws + @anthropic-ai/sdk + twilio + msedge-tts
   config/default.json   # Tum ayarlar
   data/items.seed.json  # 50+ esya katalogu
   scripts/seed.js       # Veritabani tohumla
@@ -120,6 +136,7 @@ Growtopia-multiserver/
     web/
       WebServer.js, auth.js   # Express + admin auth
       public/                 # HTML/CSS/JS istemciler
+    jarvis/                   # Sabah arayan sesli ajan: Telegram / WhatsApp (docs/JARVIS_*.md)
 ```
 
 ## Komutlarin Tamami
