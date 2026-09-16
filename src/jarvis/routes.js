@@ -1,15 +1,8 @@
-// Express rotalari: Twilio webhook'lari + admin API
+// Express rotalari: Twilio webhook'lari (sadece whatsapp/phone kanalinda) + admin API (her kanalda)
 const Perms = require('../core/Permissions');
 
 function mountJarvisRoutes(app, jarvis) {
   const { cfg, gateway, log } = jarvis;
-
-  const verifyTwilio = (req, res, next) => {
-    const url = cfg.publicUrl + req.originalUrl;
-    if (gateway.validateSignature(req.get('x-twilio-signature'), url, req.body)) return next();
-    log.warn(`Gecersiz Twilio imzasi: ${req.method} ${req.originalUrl}`);
-    res.status(403).send('bad signature');
-  };
 
   const requireAdmin = (req, res, next) => {
     const token = req.headers['x-auth'] || req.query.token;
@@ -20,29 +13,38 @@ function mountJarvisRoutes(app, jarvis) {
     next();
   };
 
-  // Twilio arama baslayinca TwiML ister
-  app.post('/jarvis/voice', verifyTwilio, (req, res) => {
-    const kind = String(req.query.kind || 'briefing');
-    res.type('text/xml').send(gateway.buildVoiceTwiml({ kind, greeting: jarvis.greetingFor(kind) }));
-  });
+  if (gateway) {
+    const verifyTwilio = (req, res, next) => {
+      const url = cfg.publicUrl + req.originalUrl;
+      if (gateway.validateSignature(req.get('x-twilio-signature'), url, req.body)) return next();
+      log.warn(`Gecersiz Twilio imzasi: ${req.method} ${req.originalUrl}`);
+      res.status(403).send('bad signature');
+    };
 
-  // ConversationRelay oturumu bitince (<Connect action>)
-  app.post('/jarvis/voice/ended', verifyTwilio, (req, res) => {
-    jarvis.onSessionEnded(req.body || {});
-    res.type('text/xml').send(gateway.hangupTwiml());
-  });
+    // Twilio arama baslayinca TwiML ister
+    app.post('/jarvis/voice', verifyTwilio, (req, res) => {
+      const kind = String(req.query.kind || 'briefing');
+      res.type('text/xml').send(gateway.buildVoiceTwiml({ kind, greeting: jarvis.greetingFor(kind) }));
+    });
 
-  // Arama durum callback'i (ringing / answered / completed ...)
-  app.post('/jarvis/voice/status', verifyTwilio, (req, res) => {
-    jarvis.onCallStatus(req.body || {});
-    res.sendStatus(204);
-  });
+    // ConversationRelay oturumu bitince (<Connect action>)
+    app.post('/jarvis/voice/ended', verifyTwilio, (req, res) => {
+      jarvis.onSessionEnded(req.body || {});
+      res.type('text/xml').send(gateway.hangupTwiml());
+    });
 
-  // WhatsApp gelen mesaj webhook'u (izin cevabi + komutlar + sohbet)
-  app.post('/jarvis/whatsapp', verifyTwilio, (req, res) => {
-    res.type('text/xml').send('<Response></Response>');
-    jarvis.onIncomingMessage(req.body || {}).catch(e => log.error('WhatsApp mesaj isleme hatasi: ' + (e && e.message)));
-  });
+    // Arama durum callback'i (ringing / answered / completed ...)
+    app.post('/jarvis/voice/status', verifyTwilio, (req, res) => {
+      jarvis.onCallStatus(req.body || {});
+      res.sendStatus(204);
+    });
+
+    // WhatsApp gelen mesaj webhook'u (izin cevabi + komutlar + sohbet)
+    app.post('/jarvis/whatsapp', verifyTwilio, (req, res) => {
+      res.type('text/xml').send('<Response></Response>');
+      jarvis.onIncomingMessage(req.body || {}).catch(e => log.error('WhatsApp mesaj isleme hatasi: ' + (e && e.message)));
+    });
+  }
 
   // Admin API (web panel token'i ile)
   app.get('/jarvis/status', requireAdmin, (req, res) => res.json(jarvis.status()));

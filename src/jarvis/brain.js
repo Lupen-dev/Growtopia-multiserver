@@ -4,7 +4,7 @@ const { fmtDateTime } = require('./briefing');
 
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 
-function buildSystemPrompt({ cfg, briefingText, mode, kind, greeting, now }) {
+function buildSystemPrompt({ cfg, briefingText, mode, kind, greeting, now, channelLabel }) {
   const tz = cfg.schedule.timeZone;
   const agent = cfg.agentName;
   const owner = cfg.ownerName;
@@ -28,9 +28,11 @@ function buildSystemPrompt({ cfg, briefingText, mode, kind, greeting, now }) {
     lines.push('- Sahip "5 dakika sonra ara", "sonra ara" gibi ertelemek isterse: cevabına [[ERTELE:5]] ile başla (dakikayı sahibin dediği gibi yaz, söylemediyse 5), ardından tek cümlelik onay.');
     lines.push('- Bu işaretleri başka hiçbir durumda yazma. İşaret olmadan cevap verirsen arama devam eder.');
   } else {
-    lines.push('KANAL: WhatsApp yazışması. Kısa, düz metin cevaplar ver; markdown ve emoji kullanma. Gerekirse madde yerine kısa cümleler kullan.');
+    const label = channelLabel || (cfg.channel === 'telegram' ? 'Telegram' : 'WhatsApp');
+    lines.push(`KANAL: ${label} yazışması. Cevabın sesli mesaj olarak da okunabilir: kısa, düz metin, konuşma dili.`);
+    lines.push('- Markdown, emoji, başlık ve madde işareti kullanma; gerekirse kısa cümleler art arda.');
     lines.push('- Rapordaki verilerin dışına çıkma, uydurma. Bilmiyorsan "raporda yok" de.');
-    lines.push('- Sahip "ara" yazarsa onu arayabileceğini ve bunun için "ara" komutunun yeterli olduğunu söyle.');
+    lines.push('- Sahip aranmak isterse "ara" yazmasının yeterli olduğunu söyle.');
   }
   lines.push('');
   lines.push('GECE RAPORU (tek bilgi kaynağın budur):');

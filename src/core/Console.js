@@ -38,7 +38,7 @@ class Console {
       '  event stop <id>             - olay durdur',
       '  save                 - hemen kaydet',
       '  reload               - yapilandirmayi yenile (yumusak)',
-      '  jarvis durum|ara|rapor|gonder|izin|sohbet <metin>  - sesli ajan (bkz. docs/JARVIS_WHATSAPP.md)',
+      '  jarvis durum|ara|rapor|gonder|izin|sohbet <metin>  - sesli ajan (docs/JARVIS_TELEGRAM.md)',
       '  stop / exit          - sunucuyu kapat'
     ].join('\n');
   }
@@ -115,7 +115,7 @@ class Console {
         case 'jarvis': {
           const j = ctx.jarvis;
           if (!j || !j.active) {
-            console.log('Jarvis aktif degil. .env icinde JARVIS_ENABLED=1 ve gerekli anahtarlar olmali (docs/JARVIS_WHATSAPP.md).');
+            console.log('Jarvis aktif degil. .env icinde JARVIS_ENABLED=1 ve gerekli anahtarlar olmali (docs/JARVIS_TELEGRAM.md).');
             if (j && j.problems && j.problems.length) for (const p of j.problems) console.log('  - ' + p);
             break;
           }

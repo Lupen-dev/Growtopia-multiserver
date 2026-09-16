@@ -1,4 +1,7 @@
-# Jarvis: WhatsApp üzerinden arayan sesli sunucu ajanı
+# Jarvis (Twilio): WhatsApp veya telefon üzerinden iki yönlü sesli arama
+
+> Bedava ve basit yol için önce **docs/JARVIS_TELEGRAM.md**'ye bak. Bu sayfa, videodaki gibi
+> gerçek zamanlı iki yönlü telefon konuşması isteyenler için Twilio kurulumunu anlatır.
 
 Jarvis her sabah (varsayılan 06:00) seni **WhatsApp'tan sesli arar**, gece sunucuda olanları anlatır
 ve sorularına cevap verir: "Kimse kızgın mı?", "Kaç kişi kayıt oldu?", "Hata var mı?".
@@ -117,5 +120,8 @@ src/jarvis/
   routes.js      /jarvis/* Express rotaları
   state.js       data/runtime/jarvis.json
   standalone.js  sunucusuz ctx (scriptler için)
-scripts/jarvis-chat.js, scripts/jarvis-simulate.js, test/jarvis.test.js
+  telegram.js    Telegram Bot API (long polling, sesli mesaj)
+  ring.js        CallMeBot ile Telegram'ı çaldırma
+  speech.js      Edge TTS seslendirme, Groq Whisper yazıya çevirme
+scripts/jarvis-chat.js, scripts/jarvis-simulate.js, test/jarvis*.test.js
 ```
