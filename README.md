@@ -76,6 +76,19 @@ Konsol acik kalir — `help` yazarak komutlari gor.
 - **Yonetici Hesaplari** (sadece owner): Helper/Mod/Admin/Owner ekle-cikar
 - **Hesap**: Sifre degistir
 
+## Jarvis: Sabah Seni WhatsApp'tan Arayan Ajan
+
+Her sabah 06:00'da WhatsApp'tan (veya telefondan) arayip gece raporunu anlatan, sorularina cevap veren
+sesli yapay zeka ajani. Twilio ConversationRelay + Claude ile calisir; kapaliyken sunucuya hicbir etkisi yoktur.
+
+```bash
+cp .env.example .env   # JARVIS_ENABLED=1, Twilio ve Claude anahtarlari
+./start.sh
+# konsol: jarvis durum | jarvis ara | jarvis rapor | jarvis izin
+```
+
+Kurulum, Meta/Twilio kisitlari ve Twilio'suz test icin: **docs/JARVIS_WHATSAPP.md**
+
 ## Manuel Adim
 
 Native bagimlilik yok, sadece Node 18+ yeterli:
@@ -97,7 +110,7 @@ git clone <repo> && cd Growtopia-multiserver
 ```
 Growtopia-multiserver/
   start.sh              # Tek komutla baslatma
-  package.json          # Sadece express + ws
+  package.json          # express + ws + twilio + @anthropic-ai/sdk
   config/default.json   # Tum ayarlar
   data/items.seed.json  # 50+ esya katalogu
   scripts/seed.js       # Veritabani tohumla
@@ -120,6 +133,7 @@ Growtopia-multiserver/
     web/
       WebServer.js, auth.js   # Express + admin auth
       public/                 # HTML/CSS/JS istemciler
+    jarvis/                   # WhatsApp/telefon sesli ajan (docs/JARVIS_WHATSAPP.md)
 ```
 
 ## Komutlarin Tamami

@@ -38,6 +38,7 @@ class Console {
       '  event stop <id>             - olay durdur',
       '  save                 - hemen kaydet',
       '  reload               - yapilandirmayi yenile (yumusak)',
+      '  jarvis durum|ara|rapor|gonder|izin|sohbet <metin>  - sesli ajan (bkz. docs/JARVIS_WHATSAPP.md)',
       '  stop / exit          - sunucuyu kapat'
     ].join('\n');
   }
@@ -111,6 +112,23 @@ class Console {
           break;
         }
         case 'save': ctx.db.saveAll(true); console.log('Tum tablolar kaydedildi.'); break;
+        case 'jarvis': {
+          const j = ctx.jarvis;
+          if (!j || !j.active) {
+            console.log('Jarvis aktif degil. .env icinde JARVIS_ENABLED=1 ve gerekli anahtarlar olmali (docs/JARVIS_WHATSAPP.md).');
+            if (j && j.problems && j.problems.length) for (const p of j.problems) console.log('  - ' + p);
+            break;
+          }
+          const sub = a[0] || 'durum';
+          if (sub === 'durum') console.log(j.statusText());
+          else if (sub === 'ara') { const r = await j.callNow('manual'); console.log(r.ok ? 'Arama baslatildi: ' + r.sid : 'Arama yapilamadi: ' + r.reason); }
+          else if (sub === 'rapor') console.log(j.reportText());
+          else if (sub === 'gonder') { const r = await j.sendReport(); console.log(r.ok ? 'Rapor WhatsApp ile gonderildi.' : 'Gonderilemedi: ' + r.reason); }
+          else if (sub === 'izin') { const r = await j.requestPermission(); console.log(r.ok ? 'Izin istegi gonderildi.' : 'Gonderilemedi: ' + r.reason); }
+          else if (sub === 'sohbet') { const text = a.slice(1).join(' '); if (!text) return console.log('kullanim: jarvis sohbet <metin>'); console.log(await j.chatReply('console', text)); }
+          else console.log('kullanim: jarvis durum|ara|rapor|gonder|izin|sohbet <metin>');
+          break;
+        }
         case 'reload': ctx.reloadConfig && ctx.reloadConfig(); console.log('Konfig yeniden okundu.'); break;
         case 'stop': case 'exit': case 'quit': ctx.shutdown && ctx.shutdown(); break;
         default: console.log(`Bilinmeyen: ${cmd}. 'help' yaz.`);

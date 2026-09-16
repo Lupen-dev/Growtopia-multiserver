@@ -526,6 +526,8 @@ class WebServer {
         this.ctx.gameServer.handleUpgrade(req, socket, head);
       } else if (url === '/wsadmin' && this.adminWss) {
         this.adminWss.handleUpgrade(req, socket, head, (ws) => this.adminWss.emit('connection', ws, req));
+      } else if (url === '/jarvis/relay' && this.ctx.jarvis && this.ctx.jarvis.relay) {
+        this.ctx.jarvis.relay.handleUpgrade(req, socket, head);
       } else {
         socket.destroy();
       }
